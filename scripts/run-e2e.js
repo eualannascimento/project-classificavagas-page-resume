@@ -12,7 +12,7 @@ try {
   process.exit(1);
 }
 
-const executablePath = playwright.chromium.executablePath();
+const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH || playwright.chromium.executablePath();
 if (!fs.existsSync(executablePath)) {
   console.error('E2E indisponível: o Chromium do Playwright não está instalado. Execute npx playwright install chromium.');
   process.exit(1);

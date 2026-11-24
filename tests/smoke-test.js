@@ -1009,20 +1009,20 @@ assert(
 console.log('\nCatalogo de templates:');
 
 assert(
-  [...EuGeroConfig.TEMPLATE_IDS].sort().join(',') === 'classic,creative,marinho,minimal,petroleo',
-  'Catalogo mantém cinco famílias estruturais'
+  [...EuGeroConfig.TEMPLATE_IDS].sort().join(',') === 'classic,creative,editorial,executivo,marinho,minimal,moderno,petroleo',
+  'Catalogo mantém oito famílias estruturais distintas'
 );
 assert(EuGeroConfig.createEmptyState().template === 'classic', 'Clássico é o modelo padrão');
 assert(
   EuGeroConfig.TEMPLATE_IDS.every((id) => {
     const t = EuGeroConfig.TEMPLATES[id];
     return t.id === id && t.name && t.description && typeof t.atsFriendly === 'boolean'
-      && ['centered', 'left', 'banner', 'sidebar', 'creative'].includes(t.layout);
+      && ['centered', 'left', 'banner', 'sidebar', 'creative', 'editorial', 'topbar', 'splitheader'].includes(t.layout);
   }),
   'Todo template tem id, name, description, layout valido e flag atsFriendly booleana'
 );
 assert(
-  new Set(EuGeroConfig.TEMPLATE_IDS.map((id) => EuGeroConfig.TEMPLATES[id].layout)).size === 5,
+  new Set(EuGeroConfig.TEMPLATE_IDS.map((id) => EuGeroConfig.TEMPLATES[id].layout)).size === 8,
   'Cada família usa uma estrutura visual diferente'
 );
 
@@ -1192,7 +1192,7 @@ assert(projectFields.find(f => f.key === 'description').tip === 'Explique sua pa
 console.log('\nTextos ATS (catalogo de modelos):');
 
 const sidebarNote = 'Este modelo divide o conteúdo em mais de uma área visual. Alguns sistemas podem misturar a ordem das informações. Para uma leitura mais segura, prefira um modelo de uma coluna.';
-['petroleo'].forEach((id) => {
+['petroleo', 'moderno'].forEach((id) => {
   assert(EuGeroConfig.TEMPLATES[id].atsNote === sidebarNote, `Nota de ATS revisada para modelo com barra lateral (${id})`);
 });
 const creativeNote = 'Este modelo usa um elemento gráfico no topo. Alguns sistemas podem ignorar ou reorganizar essa parte do conteúdo.';
@@ -1833,6 +1833,64 @@ console.log('\nPDF - sem ponto orfao e sem colisao com linha divisoria:');
   const titleAscentMm = (10.5 + 1.5) * (25.4 / 72) * 0.8;
   assert((itemCall.args[2] - titleAscentMm) > lineCall.args[1] + 1.5,
     'Topo do cargo fica abaixo da linha divisoria com folga visivel');
+}
+
+// --- Correcao 6: margens, espacamento e 8 familias funcionam de fato no PDF ---
+console.log('\nPDF - margens, densidades e 8 familias:');
+{
+  const baseSections = EuGeroConfig.getActiveSections(resumeLimitBase.enabledSections);
+  EuGeroConfig.TEMPLATE_IDS.forEach((tplId) => {
+    const docTpl = EuGeroPdfExport.generatePdf({ ...resumeLimitBase, template: tplId }, baseSections, tplId);
+    assert(docTpl.getNumberOfPages() === 1, `Modelo ${tplId} exporta 1 pagina valida no conteudo tipico`);
+    const htmlTpl = EuGeroPreview.render(resumeLimitBase, tplId, baseSections, 'export');
+    assert(htmlTpl.includes('template-' + tplId), `Previa HTML renderiza a familia ${tplId}`);
+  });
+
+  // Verifica que state.margin e state.density sao respeitados mesmo sem argumentos extras
+  const pagesCondensado = EuGeroPdfExport.measureExport({
+    ...secondPageResume,
+    margin: 'estreita',
+    density: 'condensado'
+  }).pages;
+  const pagesAmplo = EuGeroPdfExport.measureExport({
+    ...secondPageResume,
+    margin: 'confortavel',
+    density: 'amplo'
+  }).pages;
+  assert(pagesAmplo >= pagesCondensado && pagesAmplo > 1,
+    'Margem confortavel + espacamento amplo ocupam mais altura no PDF do que estreita + condensado');
+
+  // Verifica coordenadas X reais de estreita (12mm), padrao (16mm) e confortavel (20mm)
+  const measureSummaryX = (marginVal) => {
+    const { doc, calls } = createFakeDoc();
+    const palette = EuGeroPdfExport.accentPalette('#334155');
+    const data = EuGeroPdfExport.buildSectionsData(resumeLimitBase, baseSections);
+    data.state = { ...resumeLimitBase, margin: marginVal };
+    const mm = marginVal === 'estreita' ? 12 : (marginVal === 'confortavel' ? 20 : 16);
+    EuGeroPdfExport.LAYOUTS.left(doc, data, palette, mm, { fontPt: 10.5, lineHeightMult: 1.35, spaceMult: 1 }, false);
+    const heading = calls.find((c) => c.method === 'text' && c.args[0] === 'RESUMO');
+    return heading.args[1];
+  };
+  assert(
+    measureSummaryX('estreita') === 12 && measureSummaryX('padrao') === 16 && measureSummaryX('confortavel') === 20,
+    'Margens estreita (12mm), padrao (16mm) e confortavel (20mm) deslocam X no PDF'
+  );
+
+  // Verifica que espacamento altera a coordenada Y acumulada no PDF em todos os layouts
+  const measureFinalY = (spaceMult, lineHeightMult, fontPt) => {
+    const { doc, calls } = createFakeDoc();
+    const palette = EuGeroPdfExport.accentPalette('#1e3a5f');
+    const data = EuGeroPdfExport.buildSectionsData(resumeLimitBase, baseSections);
+    data.state = resumeLimitBase;
+    EuGeroPdfExport.LAYOUTS.banner(doc, data, palette, 16, { fontPt, lineHeightMult, spaceMult }, false);
+    const textYs = calls.filter((c) => c.method === 'text').map((c) => c.args[2]);
+    return Math.max(...textYs);
+  };
+  const yCompact = measureFinalY(0.78, 1.2, 10);
+  const yNormal = measureFinalY(1.0, 1.35, 10.5);
+  const yAmplo = measureFinalY(1.2, 1.45, 11);
+  assert(yCompact < yNormal && yNormal < yAmplo,
+    'Espacamento compacto, normal e amplo escalam progressivamente o ritmo vertical do PDF');
 }
 
 setTimeout(() => {

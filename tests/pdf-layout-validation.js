@@ -74,7 +74,10 @@ const layouts = {
   left: 'minimal',
   banner: 'marinho',
   sidebar: 'petroleo',
-  creative: 'creative'
+  creative: 'creative',
+  editorial: 'editorial',
+  topbar: 'executivo',
+  splitheader: 'moderno'
 };
 
 const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'eugero-pdf-layout-'));

@@ -27,6 +27,9 @@ module.exports = defineConfig({
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:4173',
     browserName: 'chromium',
     headless: true,
+    launchOptions: process.env.PLAYWRIGHT_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH }
+      : undefined,
     // O rastro da primeira repeticao diz por que a falha aconteceu, em vez de
     // so que aconteceu. Sem ele, cada instabilidade recomeca a investigacao
     // do zero, que foi o que aconteceu aqui.

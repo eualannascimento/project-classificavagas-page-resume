@@ -91,6 +91,46 @@ test.describe('jornada responsiva acessível', () => {
     const templateBefore = await label.textContent();
     await page.locator('#btn-next-template-start').click();
     await expect(label).not.toHaveText(templateBefore || '');
+    await expect.poll(() => page.evaluate(
+      () => document.documentElement.scrollHeight <= window.innerHeight + 2
+    )).toBe(true);
+  });
+
+  test('tablet retrato (820 x 1180) oferece dock, gaveta com controles e zero travamento', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await openStart(page);
+
+    await expectNoHorizontalOverflow(page);
+    await expect(page.locator('#preview-mobile-dock')).toBeVisible();
+    await expectTouchTarget(page, '#btn-expand-mobile-preview');
+
+    await page.locator('#btn-expand-mobile-preview').click();
+    await expect(page.locator('#preview-overlay')).toBeVisible();
+    await expectTouchTarget(page, '#btn-close-preview');
+    await expectTouchTarget(page, '#btn-next-template-overlay');
+    await page.locator('#btn-next-template-overlay').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#preview-overlay')).toBeHidden();
+  });
+
+  test('desktop notebook (1366 x 768) mantém todas as telas principais sem scroll vertical de página', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto(`${baseUrl}/index.html`);
+
+    await expect(page.locator('#screen-characters')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
+
+    await page.locator('.character-card[data-character="sherlock"]').click();
+    await expect(page.locator('#screen-start')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
+
+    await page.getByRole('button', { name: 'Começar a preencher' }).click();
+    await expect(page.locator('#screen-wizard')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
+
+    await page.getByRole('button', { name: 'Concluir ✓' }).click();
+    await expect(page.locator('#screen-review')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)).toBe(true);
   });
 
   test('mobile abre o modal e o drawer pelos gatilhos visíveis em 320 x 800', async ({ page }) => {
