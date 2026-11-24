@@ -55,9 +55,9 @@ const EuGeroStartScreen = (function () {
       <button type="button" class="character-card character-card-blank" id="btn-import-characters">
         ${corners}
         <span class="character-avatar" aria-hidden="true">↑</span>
-        <span class="character-kicker">Já tenho um rascunho</span>
-        <span class="character-name">Continuar de onde parei</span>
-        <span class="character-role">Carregue um rascunho salvo (.json) e continue de onde parou.</span>
+        <span class="character-kicker">Arquivo salvo (.json)</span>
+        <span class="character-name">Importar rascunho</span>
+        <span class="character-role">Carregue um arquivo .json salvo antes e continue editando.</span>
         <span class="character-cta">Carregar arquivo →</span>
       </button>
     `;
@@ -71,6 +71,7 @@ const EuGeroStartScreen = (function () {
     });
     grid.querySelector('#btn-resume-draft')?.addEventListener('click', () => ctx.resumeDraft());
     grid.querySelector('#btn-continue-imported-draft')?.addEventListener('click', () => ctx.continueImportedDraft());
+    grid.querySelector('#btn-import-characters')?.addEventListener('click', () => ctx.els.fileImport?.click());
   }
 
   function pickCharacter(id) {
@@ -86,21 +87,7 @@ const EuGeroStartScreen = (function () {
     ctx.goToStart();
   }
 
-  const PAGE_MARGINS = [
-    { v: 'estreita', l: 'Estreita' },
-    { v: 'padrao', l: 'Padrão' },
-    { v: 'confortavel', l: 'Confortável' }
-  ];
-  const PAGE_DENSITIES = [
-    { v: 'normal', l: 'Normal' },
-    { v: 'condensado', l: 'Condensado' }
-  ];
-
   function renderTemplatePickers() {
-    // A cor de destaque e a unica coisa dinamica da miniatura. Ela vai num
-    // data-* e e aplicada depois por CSSOM (aplicarAcentoDasMiniaturas), porque
-    // atributo style e barrado pela CSP e elemento.style nao e. A geometria toda
-    // mora em css/screens.css.
     const getThumbMarkup = (layout, id) => {
       const accent = TEMPLATES[id]?.thumbAccent || '#334155';
       const raiz = `data-thumb-accent="${ctx.escapeAttr(accent)}"`;
@@ -112,6 +99,21 @@ const EuGeroStartScreen = (function () {
             <div class="thumb-line thumb-line-soft thumb-line-w100"></div>
             <div class="thumb-line thumb-line-soft thumb-line-w90"></div>
             <div class="thumb-line thumb-line-soft thumb-line-w40"></div>
+          </div>
+        `;
+      }
+      if (layout === 'splitheader') {
+        return `
+          <div class="thumb-col thumb-col-pad thumb-col-left">
+            <div class="thumb-line thumb-line-h4 thumb-accent-bg thumb-line-w70 thumb-line-gap" ${raiz}></div>
+            <div class="thumb-split-body">
+              <div class="thumb-split-main">
+                <div class="thumb-line thumb-line-strong thumb-line-w90"></div>
+                <div class="thumb-line thumb-line-soft thumb-line-w100"></div>
+                <div class="thumb-line thumb-line-soft thumb-line-w80"></div>
+              </div>
+              <div class="thumb-split-rail thumb-accent-bg" ${raiz}></div>
+            </div>
           </div>
         `;
       }
@@ -127,6 +129,32 @@ const EuGeroStartScreen = (function () {
           </div>
         `;
       }
+      if (layout === 'topbar') {
+        return `
+          <div class="thumb-col">
+            <div class="thumb-topbar-edge thumb-accent-bg" ${raiz}></div>
+            <div class="thumb-main">
+              <div class="thumb-line thumb-line-h4 thumb-accent-bg thumb-line-w60 thumb-line-gap" ${raiz}></div>
+              <div class="thumb-line thumb-line-soft thumb-line-w100"></div>
+              <div class="thumb-line thumb-line-strong thumb-line-w50"></div>
+              <div class="thumb-line thumb-line-soft thumb-line-w90"></div>
+            </div>
+          </div>
+        `;
+      }
+      if (layout === 'editorial') {
+        return `
+          <div class="thumb-col thumb-col-pad thumb-col-left">
+            <div class="thumb-editorial-head">
+              <div class="thumb-line thumb-line-h5 thumb-accent-bg thumb-line-w50" ${raiz}></div>
+              <div class="thumb-line thumb-line-soft thumb-line-w30"></div>
+            </div>
+            <div class="thumb-editorial-rule thumb-accent-bg" ${raiz}></div>
+            <div class="thumb-line thumb-line-strong thumb-line-w90"></div>
+            <div class="thumb-line thumb-line-soft thumb-line-w80"></div>
+          </div>
+        `;
+      }
       if (layout === 'left') {
         return `
           <div class="thumb-col thumb-col-pad thumb-col-left">
@@ -137,7 +165,6 @@ const EuGeroStartScreen = (function () {
           </div>
         `;
       }
-      // A família Clássico usa a estrutura centralizada.
       const isCreative = layout === 'creative';
       const topo = isCreative
         ? `<div class="thumb-creative-head">
@@ -155,39 +182,30 @@ const EuGeroStartScreen = (function () {
       `;
     };
 
-    const cardHtml = (t) => {
-      const atsBadge = t.atsFriendly
-        ? '<span class="badge badge-ats">Estrutura favorável a ATS</span>'
-        : `<span class="badge badge-ats-warn" title="${ctx.escapeAttr(t.atsNote || 'A leitura pode variar conforme o sistema ATS.')}">Pode dificultar a leitura por ATS</span>`;
-      return `
-        <button type="button" class="template-card" data-template="${t.id}" aria-label="Template ${ctx.escapeAttr(t.name)}">
-          <div class="template-thumb ${t.thumbClass}">${getThumbMarkup(t.layout, t.id)}</div>
-          <span class="template-card-name">${ctx.escapeHtml(t.name)} ${atsBadge}</span>
-          <small class="template-card-desc">${ctx.escapeHtml(t.description)}</small>
-        </button>
-      `;
-    };
-
-    const startGrid = document.getElementById('template-grid-start');
-    if (startGrid) {
-      startGrid.innerHTML = TEMPLATE_IDS.map((id) => cardHtml(TEMPLATES[id])).join('');
-    }
-
     const modalGrid = document.getElementById('modal-template-grid');
     if (modalGrid) {
+      const currentId = ctx.getState()?.template;
       modalGrid.innerHTML = TEMPLATE_IDS.map((id) => {
         const t = TEMPLATES[id];
-        const atsNote = t.atsFriendly ? 'Estrutura simples e favorável à leitura por ATS' : (t.atsNote || 'Pode dificultar a leitura por ATS');
-        return `<button type="button" class="modal-template-option" data-template="${t.id}"><strong>${ctx.escapeHtml(t.name)}</strong><span>${ctx.escapeHtml(t.description)} - ${ctx.escapeHtml(atsNote)}</span></button>`;
+        const selected = currentId === t.id;
+        const atsBadge = t.atsFriendly
+          ? '<span class="badge badge-ats">Estrutura favorável a ATS</span>'
+          : '<span class="badge badge-ats-warn">Pode dificultar a leitura por ATS</span>';
+        return `
+          <button type="button" class="modal-template-option${selected ? ' selected' : ''}" data-template="${t.id}" aria-pressed="${selected}">
+            <div class="template-thumb modal-template-thumb">${getThumbMarkup(t.layout, t.id)}</div>
+            <div class="modal-template-meta">
+              <div class="modal-template-title-row">
+                <strong>${ctx.escapeHtml(t.name)}</strong>
+                ${atsBadge}
+              </div>
+              <span>${ctx.escapeHtml(t.description)}</span>
+            </div>
+          </button>`;
       }).join('');
     }
 
     aplicarAcentoDasMiniaturas();
-
-    document.querySelectorAll('.template-card').forEach((card) => {
-      card.addEventListener('click', () => pickTemplate(card.dataset.template));
-    });
-
     updateTemplatePreviewMinis();
   }
 
@@ -225,16 +243,19 @@ const EuGeroStartScreen = (function () {
     ctx.els.sectionChecklist.innerHTML = orderedSections.map((section) => {
       const mandatory = isSectionMandatory(section.id);
       const checked = state.enabledSections.includes(section.id) || mandatory;
+      const inputId = `section-toggle-${section.id}`;
       return `
-        <label class="section-check ${mandatory ? 'section-check-mandatory' : ''} ${checked ? 'section-check-enabled' : ''}" data-section-row="${section.id}" ${!mandatory && checked ? 'draggable="true"' : ''}>
+        <div class="section-check ${mandatory ? 'section-check-mandatory' : ''} ${checked ? 'section-check-enabled' : ''}" data-section-row="${section.id}" ${!mandatory && checked ? 'draggable="true"' : ''}>
           ${!mandatory && checked ? '<span class="section-drag-handle" aria-label="Arraste para reordenar" title="Arraste para reordenar">⠿</span>' : '<span class="section-drag-spacer" aria-hidden="true"></span>'}
-          <input type="checkbox" data-section-id="${section.id}" ${checked ? 'checked' : ''} ${mandatory ? 'disabled checked' : ''} class="section-check-box">
-          <span class="section-check-label section-check-row">
-            <strong class="section-check-title">${section.title}</strong>
-            <span class="section-check-tag">${mandatory ? 'Sempre incluída' : 'Opcional'}</span>
-          </span>
+          <label class="section-check-toggle" for="${inputId}">
+            <input type="checkbox" id="${inputId}" data-section-id="${section.id}" ${checked ? 'checked' : ''} ${mandatory ? 'disabled checked' : ''} class="section-check-box">
+            <span class="section-check-label section-check-row">
+              <strong class="section-check-title">${section.title}</strong>
+              <span class="section-check-tag">${mandatory ? 'Sempre' : 'Opcional'}</span>
+            </span>
+          </label>
           ${!mandatory && checked ? `<span class="section-move-actions"><button type="button" data-move-section="${section.id}" data-direction="up" aria-label="Subir ${section.title}">↑</button><button type="button" data-move-section="${section.id}" data-direction="down" aria-label="Descer ${section.title}">↓</button></span>` : ''}
-        </label>
+        </div>
       `;
     }).join('');
 
@@ -245,7 +266,10 @@ const EuGeroStartScreen = (function () {
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        moveSection(button.dataset.moveSection, button.dataset.direction);
+        const sid = button.dataset.moveSection;
+        const dir = button.dataset.direction;
+        moveSection(sid, dir);
+        ctx.els.sectionChecklist.querySelector(`button[data-move-section="${sid}"][data-direction="${dir}"]`)?.focus();
       });
     });
     bindSectionReorder();

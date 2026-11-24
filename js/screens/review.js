@@ -10,6 +10,7 @@ const EuGeroReviewScreen = (function () {
   let ctx = null;
   let reviewGalleryIndex = 0;
   let pageMeasurementRequest = 0;
+  let activeReviewTab = 'sections';
 
   function init(context) {
     ctx = context;
@@ -51,9 +52,7 @@ const EuGeroReviewScreen = (function () {
       scoreMsg = 'O currículo está organizado. Revise os pontos indicados antes de finalizar.';
     }
 
-    const muted = 'color-mix(in srgb, var(--color-text) 55%, transparent)';
     let html = renderValidationSummary(validationErrors) + `
-      <p class="review-intro">Esta análise considera apenas o preenchimento do currículo. Ela não avalia seu perfil nem garante resultados em processos seletivos.</p>
       <div class="review-score-row">
         <div>
           <div class="review-score-value">${ctx.escapeHtml(scoreLabel)}</div>
@@ -65,9 +64,12 @@ const EuGeroReviewScreen = (function () {
           </div>
           <p class="review-score-text">${ctx.escapeHtml(scoreMsg)}</p>
         </div>
+      </div>
+      <div class="review-measure-banner">
+        <span class="review-measure-dot" aria-hidden="true"></span>
+        <p class="review-measure-text" data-pdf-page-measure>Calculando páginas do PDF...</p>
       </div>`;
 
-    // Quadro por secao: o que ja esta preenchido e o que reforcar, com dica especifica.
     const feedback = EuGeroScoring.buildSectionFeedback(state, sections, ACTION_VERBS);
     const STATUS_META = {
       otimo: { label: 'Bem preenchida', cls: 'rf-otimo' },
@@ -75,28 +77,6 @@ const EuGeroReviewScreen = (function () {
       fraco: { label: 'Pouco preenchida', cls: 'rf-fraco' },
       vazio: { label: 'Sem conteúdo', cls: 'rf-vazio' }
     };
-
-    html += `
-      <div class="review-block">
-        <p class="review-block-title">Preenchimento por seção</p>
-        <div class="review-feedback">
-          ${feedback.map((f) => {
-            const meta = STATUS_META[f.status] || STATUS_META.bom;
-            const stepIndex = sections.findIndex((s) => s.id === f.sectionId);
-            const tips = f.tips.map((t) =>
-              `<button type="button" class="rf-tip link-btn" data-step="${stepIndex}">${ctx.escapeHtml(t.label)}: ${ctx.escapeHtml(t.advice)}</button>`
-            ).join('');
-            return `
-              <div class="review-feedback-row">
-                <button type="button" class="rf-head link-btn" data-step="${stepIndex}">
-                  <span class="rf-badge ${meta.cls}">${meta.label}</span>
-                  <span class="rf-title">${ctx.escapeHtml(f.title)}</span>
-                </button>
-                ${tips ? `<div class="rf-tips">${tips}</div>` : ''}
-              </div>`;
-          }).join('')}
-        </div>
-      </div>`;
 
     const currentTemplate = TEMPLATES[state.template];
     const pageLimit = state.pageMode === 'detailed' ? 2 : 1;
@@ -134,15 +114,7 @@ const EuGeroReviewScreen = (function () {
       state.summary ? 'Resumo incluído' : 'Inclua um resumo curto e específico',
       pageTitle
     ];
-    html += `<div class="review-block">
-      <p class="review-block-title-tight">Extensão e checagem final</p>
-      <p class="review-block-text">${ctx.escapeHtml(pageText)}</p>
-      <p class="review-block-text" data-pdf-page-measure>Calculando páginas do PDF...</p>
-      <ul class="review-block-list">${checklist.map((item) => `<li>${ctx.escapeHtml(item)}</li>`).join('')}</ul>
-      ${reductionActions ? `<div class="rf-tips" data-page-reduction-actions${pageFit.level === 'ok' ? ' hidden' : ''}>${reductionActions}</div>` : ''}
-    </div>`;
 
-    // Painel de leitura por ATS: considera apenas a estrutura do modelo escolhido.
     const atsStatusLabel = currentTemplate?.atsFriendly ? 'Estrutura favorável' : 'Revise a estrutura';
     const atsStatusDesc = currentTemplate?.atsFriendly
       ? 'O modelo escolhido usa uma organização simples, que costuma facilitar a leitura automática.'
@@ -155,9 +127,42 @@ const EuGeroReviewScreen = (function () {
       'Confirme se o texto do PDF pode ser selecionado e copiado.',
       'Depois do envio, revise os dados importados pela plataforma.'
     ];
+
     html += `
-      <div class="review-block">
-        <p class="review-block-title-tight">Leitura por ATS</p>
+      <div class="review-tabs" role="tablist" aria-label="Detalhes da revisão">
+        <button type="button" role="tab" class="review-tab${activeReviewTab === 'sections' ? ' active' : ''}" data-review-tab="sections" aria-selected="${activeReviewTab === 'sections'}">Seções</button>
+        <button type="button" role="tab" class="review-tab${activeReviewTab === 'checks' ? ' active' : ''}" data-review-tab="checks" aria-selected="${activeReviewTab === 'checks'}">Extensão</button>
+        <button type="button" role="tab" class="review-tab${activeReviewTab === 'ats' ? ' active' : ''}" data-review-tab="ats" aria-selected="${activeReviewTab === 'ats'}">Leitura ATS</button>
+      </div>
+
+      <div class="review-tab-panel" data-review-panel="sections"${activeReviewTab !== 'sections' ? ' hidden' : ''}>
+        <p class="review-intro">Clique em qualquer seção ou dica para ir direto ao ponto de edição.</p>
+        <div class="review-feedback">
+          ${feedback.map((f) => {
+            const meta = STATUS_META[f.status] || STATUS_META.bom;
+            const stepIndex = sections.findIndex((s) => s.id === f.sectionId);
+            const tips = f.tips.map((t) =>
+              `<button type="button" class="rf-tip link-btn" data-step="${stepIndex}">${ctx.escapeHtml(t.label)}: ${ctx.escapeHtml(t.advice)}</button>`
+            ).join('');
+            return `
+              <div class="review-feedback-row">
+                <button type="button" class="rf-head link-btn" data-step="${stepIndex}">
+                  <span class="rf-badge ${meta.cls}">${meta.label}</span>
+                  <span class="rf-title">${ctx.escapeHtml(f.title)}</span>
+                </button>
+                ${tips ? `<div class="rf-tips">${tips}</div>` : ''}
+              </div>`;
+          }).join('')}
+        </div>
+        ${reductionActions ? `<div class="rf-tips review-reduction-inline" data-page-reduction-actions${pageFit.level === 'ok' ? ' hidden' : ''}>${reductionActions}</div>` : ''}
+      </div>
+
+      <div class="review-tab-panel" data-review-panel="checks"${activeReviewTab !== 'checks' ? ' hidden' : ''}>
+        <p class="review-block-text">${ctx.escapeHtml(pageText)}</p>
+        <ul class="review-block-list">${checklist.map((item) => `<li>${ctx.escapeHtml(item)}</li>`).join('')}</ul>
+      </div>
+
+      <div class="review-tab-panel" data-review-panel="ats"${activeReviewTab !== 'ats' ? ' hidden' : ''}>
         <p class="review-block-note">Esta verificação considera apenas a estrutura e a organização do currículo. Ela não garante aprovação nem substitui o preenchimento dos campos da plataforma.</p>
         <div class="review-ats-row">
           <span class="rf-badge ${currentTemplate?.atsFriendly ? 'rf-otimo' : 'rf-fraco'}">${ctx.escapeHtml(atsStatusLabel)}</span>
@@ -170,11 +175,22 @@ const EuGeroReviewScreen = (function () {
       </div>`;
 
     ctx.els.reviewContent.innerHTML = html;
-    // A largura da barra e o unico valor calculado do bloco. Ela chega por
-    // data-pct e e aplicada aqui por CSSOM: a CSP barra o atributo style,
-    // inclusive vindo de innerHTML, mas nao barra elemento.style.
     ctx.els.reviewContent.querySelectorAll('[data-pct]').forEach((barra) => {
       barra.style.width = `${barra.dataset.pct}%`;
+    });
+
+    ctx.els.reviewContent.querySelectorAll('[data-review-tab]').forEach((tabBtn) => {
+      tabBtn.addEventListener('click', () => {
+        activeReviewTab = tabBtn.dataset.reviewTab;
+        ctx.els.reviewContent.querySelectorAll('[data-review-tab]').forEach((b) => {
+          const on = b.dataset.reviewTab === activeReviewTab;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', String(on));
+        });
+        ctx.els.reviewContent.querySelectorAll('[data-review-panel]').forEach((panel) => {
+          panel.hidden = panel.dataset.reviewPanel !== activeReviewTab;
+        });
+      });
     });
 
     ctx.els.reviewContent.querySelectorAll('.link-btn').forEach((btn) => {
@@ -338,47 +354,12 @@ const EuGeroReviewScreen = (function () {
       );
       doc.save(`${cvFileBaseName(state)}.pdf`);
       return true;
-    } catch (err) {
+    } catch {
       ctx.showToast?.('Não foi possível gerar o PDF. Tente novamente.', { error: true });
       return false;
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = rotuloOriginal; }
     }
-  }
-
-  function renderReviewTemplateGallery() {
-    const state = ctx.getState();
-    if (!ctx.els.reviewTemplateGallery) return;
-    const sections = ctx.activeSections();
-
-    ctx.els.reviewTemplateGallery.innerHTML = TEMPLATE_IDS.map((id) => {
-      const t = TEMPLATES[id];
-      const selected = state.template === id;
-      const atsBadge = t.atsFriendly
-        ? '<span class="badge badge-ats">Estrutura favorável a ATS</span>'
-        : '<span class="badge badge-ats-warn">Pode dificultar a leitura por ATS</span>';
-      return `
-        <button type="button" class="review-template-card${selected ? ' selected' : ''}" data-template="${t.id}" aria-pressed="${selected}">
-          <span class="review-template-name">${ctx.escapeHtml(t.name)} ${atsBadge}</span>
-          <div class="review-template-preview-wrap">
-            <div class="review-template-preview" data-preview-template="${t.id}"></div>
-          </div>
-        </button>
-      `;
-    }).join('');
-
-    ctx.els.reviewTemplateGallery.querySelectorAll('[data-preview-template]').forEach((container) => {
-      EuGeroPreview.updatePreview(container, state, container.dataset.previewTemplate, sections);
-    });
-
-    ctx.els.reviewTemplateGallery.querySelectorAll('.review-template-card').forEach((card) => {
-      card.addEventListener('click', () => {
-        ctx.switchTemplate(card.dataset.template);
-        renderReview();
-      });
-    });
-
-    requestAnimationFrame(ctx.scaleReviewPreviews);
   }
 
   function syncGalleryToTemplate() {
@@ -389,7 +370,6 @@ const EuGeroReviewScreen = (function () {
 
   function galleryStep(dir) {
     const state = ctx.getState();
-    // Navegar ja aplica o modelo (sem precisar de "Usar este").
     const total = TEMPLATE_IDS.length;
     reviewGalleryIndex = ((reviewGalleryIndex + dir) % total + total) % total;
     state.template = TEMPLATE_IDS[reviewGalleryIndex];
@@ -403,7 +383,7 @@ const EuGeroReviewScreen = (function () {
     galleryStep,
     renderReview,
     renderReviewGallery,
-    renderReviewTemplateGallery,
+    syncPrintCv,
     cvFileBaseName,
     printCv,
     downloadPdf

@@ -29,8 +29,9 @@ const EuGeroValidation = (function () {
   }
 
   function validateField(value, field) {
-    if (field.required && isEmpty(value)) {
-      return { ok: false, message: `${field.label} e obrigatorio.` };
+    if (field.required) {
+      const req = validateRequired(value, field.label);
+      if (!req.ok) return req;
     }
     if (isEmpty(value)) return { ok: true, message: '' };
 

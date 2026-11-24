@@ -5,7 +5,8 @@
   'use strict';
 
   const {
-    TEMPLATES, getActiveSections, normalizeEnabledSections, TEMPLATE_IDS
+    TEMPLATES, getActiveSections, normalizeEnabledSections, TEMPLATE_IDS,
+    PAGE_MARGINS, PAGE_DENSITIES, PAGE_MODES
   } = EuGeroConfig;
   const { escapeHtml, escapeAttr, debounce } = EuGeroUtils;
 
@@ -17,10 +18,8 @@
   let pendingValidationIssue = null;
 
   const els = {};
-  // 210mm convertido para px (unidade CSS absoluta: 96px = 1in = 25.4mm) -
-  // a previa usa a largura fisica real da pagina A4 antes da escala de
-  // exibicao, entao previa e impressao usam exatamente a mesma tipografia (P0.4).
   const A4_BASE_WIDTH = 210 * 96 / 25.4;
+  const A4_ASPECT = 297 / 210;
 
   // Contexto compartilhado com os módulos de tela (js/screens/*).
   // getState é função porque `state` é reatribuído (import, personagens, limpar).
@@ -118,11 +117,9 @@
     els.screenReview = document.getElementById('screen-review');
     els.screenGuide = document.getElementById('screen-guide');
     els.wizardSteps = document.getElementById('wizard-steps');
-    els.wizardProgress = document.getElementById('wizard-progress');
     els.wizardTimeline = document.getElementById('wizard-timeline');
     els.sectionChecklist = document.getElementById('section-checklist');
     els.reviewContent = document.getElementById('review-content');
-    els.reviewTemplateGallery = document.getElementById('review-template-gallery');
     els.guideContent = document.getElementById('guide-content');
     els.modalTemplate = document.getElementById('modal-template');
     els.fileImport = document.getElementById('file-import');
@@ -177,7 +174,10 @@
     currentView = route.view || 'characters';
     if (currentView === 'review') {
       const gate = validateResume();
-      if (gate.valid) return true;
+      if (gate.valid) {
+        EuGeroReviewScreen.syncGalleryToTemplate();
+        return true;
+      }
       const firstIssue = gate.firstIssue;
       state.currentStep = firstIssue?.stepIndex || 0;
       const sectionId = firstIssue?.sectionId || resolveWizardSectionId(null);
@@ -310,8 +310,7 @@
         updateThemeToggleLabel(next);
       }
     });
-    // O mesmo atalho existe como card na galeria de personagens (ver screens/start.js).
-    document.getElementById('btn-import-characters')?.addEventListener('click', () => els.fileImport?.click());
+    document.getElementById('wizard-form')?.addEventListener('submit', (e) => e.preventDefault());
     document.getElementById('btn-start-new')?.addEventListener('click', startNewDraft);
     document.getElementById('btn-clear-local-data')?.addEventListener('click', () => {
       const confirmed = window.confirm('Isto apagará o rascunho e as preferências salvos localmente neste navegador. Arquivos JSON já baixados não serão afetados e a ação não pode ser desfeita. Deseja apagar os dados locais?');
@@ -324,31 +323,20 @@
     document.getElementById('btn-next-template-start')?.addEventListener('click', () => cycleTemplate(1));
     document.getElementById('btn-prev-template')?.addEventListener('click', () => cycleTemplate(-1));
     document.getElementById('btn-next-template')?.addEventListener('click', () => cycleTemplate(1));
+    document.getElementById('btn-prev-template-overlay')?.addEventListener('click', () => cycleTemplate(-1));
+    document.getElementById('btn-next-template-overlay')?.addEventListener('click', () => cycleTemplate(1));
     document.getElementById('btn-prev')?.addEventListener('click', prevStep);
     document.getElementById('btn-next')?.addEventListener('click', nextStep);
-    document.getElementById('btn-finish')?.addEventListener('click', () => goToReview({ validate: true }));
+    document.getElementById('btn-finish')?.addEventListener('click', () => goToReview());
     document.getElementById('btn-back-wizard')?.addEventListener('click', () => goToWizard());
     document.getElementById('btn-wizard-to-start')?.addEventListener('click', goToStart);
     document.getElementById('btn-gal-prev')?.addEventListener('click', () => EuGeroReviewScreen.galleryStep(-1));
     document.getElementById('btn-gal-next')?.addEventListener('click', () => EuGeroReviewScreen.galleryStep(1));
-    document.getElementById('btn-export-pdf')?.addEventListener('click', EuGeroReviewScreen.downloadPdf);
+    document.getElementById('btn-export-pdf')?.addEventListener('click', () => EuGeroReviewScreen.downloadPdf());
+    document.getElementById('btn-print-review')?.addEventListener('click', () => EuGeroReviewScreen.printCv());
     document.getElementById('btn-guide')?.addEventListener('click', goToGuide);
     document.getElementById('btn-back-review')?.addEventListener('click', goToReview);
-
-    const btnToggleCompact = document.getElementById('toggle-compact-mode');
-    if (btnToggleCompact) {
-      btnToggleCompact.addEventListener('change', (e) => {
-        document.querySelectorAll('.preview-content').forEach(el => {
-          el.classList.toggle('condensed-mode', e.target.checked);
-        });
-      });
-    }
-
-    document.getElementById('btn-export-json')?.addEventListener('click', exportJson);
     document.getElementById('btn-export-json-review')?.addEventListener('click', exportJson);
-    document.getElementById('btn-import-json')?.addEventListener('click', () => els.fileImport?.click());
-    document.getElementById('btn-import-json-review')?.addEventListener('click', () => els.fileImport?.click());
-    document.getElementById('btn-import-start')?.addEventListener('click', () => els.fileImport?.click());
     els.fileImport?.addEventListener('change', handleImport);
 
     document.querySelectorAll('.modal-close').forEach((btn) => {
@@ -363,10 +351,18 @@
       }
     });
 
-    document.getElementById('btn-toggle-preview')?.addEventListener('click', (e) => openPreviewOverlay(e.currentTarget));
     document.getElementById('btn-toggle-preview-start')?.addEventListener('click', (e) => openPreviewOverlay(e.currentTarget));
-    document.getElementById('btn-change-template-start')?.addEventListener('click', (e) => openModal(els.modalTemplate, e.currentTarget));
-    document.getElementById('btn-toggle-preview-review')?.addEventListener('click', (e) => openPreviewOverlay(e.currentTarget));
+    document.getElementById('btn-change-template-start')?.addEventListener('click', (e) => {
+      EuGeroStartScreen.renderTemplatePickers();
+      openModal(els.modalTemplate, e.currentTarget);
+    });
+    document.querySelectorAll('[data-open-template-modal]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        if (els.previewOverlay && !els.previewOverlay.hidden) closePreviewOverlay();
+        EuGeroStartScreen.renderTemplatePickers();
+        openModal(els.modalTemplate, e.currentTarget);
+      });
+    });
     document.getElementById('btn-expand-mobile-preview')?.addEventListener('click', (e) => openPreviewOverlay(e.currentTarget));
     document.getElementById('btn-close-preview')?.addEventListener('click', () => closePreviewOverlay());
     els.previewOverlay?.addEventListener('click', (e) => {
@@ -375,7 +371,8 @@
       }
     });
 
-    window.addEventListener('resize', debounce(scaleReviewPreviews, 150));
+    window.addEventListener('resize', debounce(scaleReviewPreviews, 100));
+    window.addEventListener('beforeprint', () => EuGeroReviewScreen.syncPrintCv());
 
     document.querySelectorAll('.modal').forEach((modal) => {
       modal.addEventListener('click', (e) => {
@@ -405,7 +402,9 @@
   function flashSavedIndicator() {
     const el = els.savedIndicator || document.getElementById('saved-indicator');
     if (!el) return;
-    el.textContent = 'Salvo';
+    const textEl = el.querySelector('.nav-saved-text');
+    if (textEl) textEl.textContent = 'Salvo localmente';
+    else el.textContent = 'Salvo';
     el.hidden = false;
     el.classList.add('visible');
     clearTimeout(flashSavedIndicator._timer);
@@ -424,25 +423,16 @@
     el.hidden = true;
   }
 
-  const PAGE_MARGINS = [
-    { v: 'estreita', l: 'Estreita' },
-    { v: 'padrao', l: 'Padrão' },
-    { v: 'confortavel', l: 'Confortável' }
-  ];
-  const PAGE_DENSITIES = [
-    { v: 'normal', l: 'Normal' },
-    { v: 'condensado', l: 'Condensado' }
-  ];
-  const PAGE_MODES = [
-    { v: 'compact', l: '1 página' },
-    { v: 'detailed', l: 'Até 2 páginas' }
-  ];
-
-  function setPageOption(key, value) {
+  function setPageOption(key, value, focusedName) {
     state[key] = value;
     saveState();
     renderPageControls();
-    if (els.previewMobileDock) els.previewMobileDock.hidden = currentView !== 'wizard';
+    if (focusedName) {
+      document.querySelector(`input[name="${focusedName}"][value="${value}"]`)?.focus();
+    }
+    if (els.previewMobileDock) {
+      els.previewMobileDock.hidden = (currentView !== 'start' && currentView !== 'wizard');
+    }
     if (currentView === 'review') EuGeroReviewScreen.renderReview();
     debouncedUpdatePreviews();
   }
@@ -450,8 +440,6 @@
   function renderPageControls() {
     const containers = document.querySelectorAll('[data-page-controls]');
     if (!containers.length) return;
-    // O name precisa ser único por container: radios com o mesmo name no
-    // documento formam um grupo só e desmarcam uns aos outros.
     const seg = (name, title, cur, opts) => `
       <div>
         <div class="cv-pc-label">${title}</div>
@@ -466,13 +454,13 @@
         ${seg(`pc-mode-${ci}`, 'Extensão', state.pageMode || 'compact', PAGE_MODES)}
       </div>`;
       c.querySelectorAll(`input[name="pc-margin-${ci}"]`).forEach((inp) => {
-        inp.addEventListener('change', () => setPageOption('margin', inp.value));
+        inp.addEventListener('change', () => setPageOption('margin', inp.value, inp.name));
       });
       c.querySelectorAll(`input[name="pc-density-${ci}"]`).forEach((inp) => {
-        inp.addEventListener('change', () => setPageOption('density', inp.value));
+        inp.addEventListener('change', () => setPageOption('density', inp.value, inp.name));
       });
       c.querySelectorAll(`input[name="pc-mode-${ci}"]`).forEach((inp) => {
-        inp.addEventListener('change', () => setPageOption('pageMode', inp.value));
+        inp.addEventListener('change', () => setPageOption('pageMode', inp.value, inp.name));
       });
     });
   }
@@ -485,14 +473,17 @@
 
   function switchTemplate(templateId) {
     state.template = templateId;
-    document.querySelectorAll('.template-card').forEach((card) => {
-      card.classList.toggle('selected', card.dataset.template === templateId);
-    });
-    document.querySelectorAll('.review-template-card').forEach((card) => {
-      card.classList.toggle('selected', card.dataset.template === templateId);
+    document.querySelectorAll('.template-card, .modal-template-option').forEach((card) => {
+      const selected = card.dataset.template === templateId;
+      card.classList.toggle('selected', selected);
+      if (card.hasAttribute('aria-pressed')) card.setAttribute('aria-pressed', String(selected));
     });
     saveState();
     updateTemplateIndicators();
+    if (currentView === 'review') {
+      EuGeroReviewScreen.syncGalleryToTemplate();
+      EuGeroReviewScreen.renderReview();
+    }
     debouncedUpdatePreviews();
   }
 
@@ -549,8 +540,7 @@
     els.screenReview.hidden = view !== 'review';
     els.screenGuide.hidden = view !== 'guide';
     if (els.previewMobileDock) {
-      els.previewMobileDock.hidden = (view !== 'wizard' && view !== 'review');
-      // No wizard o botao flutua acima da barra fixa; nas demais, junto da base.
+      els.previewMobileDock.hidden = (view !== 'start' && view !== 'wizard');
       els.previewMobileDock.style.bottom = view === 'wizard'
         ? 'calc(4.8rem + env(safe-area-inset-bottom))'
         : 'calc(16px + env(safe-area-inset-bottom))';
@@ -591,17 +581,33 @@
   let a4Observer = null;
 
   function observeA4Wraps() {
-    // Re-escala sempre que a moldura muda de tamanho ou aparece
-    // (troca de tela, abrir overlay, girar o celular) - evita previa "bugada".
     if (a4Observer || typeof ResizeObserver === 'undefined') return;
     a4Observer = new ResizeObserver(() => scaleReviewPreviews());
-    document.querySelectorAll('.preview-a4-wrap').forEach((wrap) => a4Observer.observe(wrap));
+    document.querySelectorAll('.preview-a4-wrap, .preview-stage').forEach((el) => a4Observer.observe(el));
   }
 
   function scaleReviewPreviews() {
-    // Escala as prévias dentro da moldura A4 (largura fisica real: 210mm).
+    const isDesktopStudio = typeof window !== 'undefined' && window.innerWidth >= 1024;
     document.querySelectorAll('.preview-a4-wrap > .preview-content').forEach((preview) => {
-      const width = preview.parentElement.clientWidth;
+      const wrap = preview.parentElement;
+      const stage = wrap.closest('.preview-stage');
+      if (isDesktopStudio && stage && stage.clientHeight > 60 && stage.clientWidth > 60) {
+        const twoPages = wrap.classList.contains('preview-a4-wrap-two-pages');
+        stage.classList.toggle('preview-stage-scrollable', twoPages);
+        const availW = stage.clientWidth - 16;
+        const availH = stage.clientHeight - 16;
+        const fitW = twoPages
+          ? Math.min(availW - 8, (availH / A4_ASPECT) * 1.18)
+          : Math.min(availW, availH / A4_ASPECT);
+        const finalW = Math.max(180, Math.floor(fitW));
+        wrap.style.width = `${finalW}px`;
+        const scale = finalW / A4_BASE_WIDTH;
+        preview.style.width = '210mm';
+        preview.style.transform = `scale(${scale})`;
+        return;
+      }
+      if (wrap.style) wrap.style.width = '';
+      const width = wrap.clientWidth;
       if (width <= 0) return;
       const scale = width / A4_BASE_WIDTH;
       preview.style.width = '210mm';
@@ -679,7 +685,7 @@
           onAction: continueImportedDraft,
           duration: 8000
         });
-      } catch (err) {
+      } catch {
         showToast('Este arquivo está corrompido ou não é válido. Tente outro.', { error: true });
       }
     };

@@ -65,108 +65,123 @@
     </nav>
 
     <div id="app-main">
-    <!-- Início: template + seções + preview -->
     <!-- Seleção de personagem -->
-    <main id="screen-characters" class="screen cv-main screen-wide" hidden>
-      <p class="screen-eyebrow">Antes de começar</p>
-      <h1 class="screen-title">Escolha um ponto de partida</h1>
-      <p class="screen-lead">Use um exemplo pronto para entender como preencher ou comece com uma página em branco. Você poderá editar tudo depois.</p>
-      <div id="character-grid" class="character-grid"></div>
-      <div class="actions-row">
-        <button type="button" class="btn btn-secondary" id="btn-start-new">Começar de novo</button>
-        <button type="button" class="btn btn-ghost btn-text-sm" id="btn-clear-local-data">Apagar dados locais</button>
+    <main id="screen-characters" class="screen cv-main screen-wide screen-studio" hidden>
+      <div class="characters-head">
+        <p class="screen-eyebrow">Antes de começar</p>
+        <h1 class="screen-title">Escolha um ponto de partida</h1>
+        <p class="screen-lead">Use um exemplo pronto para entender como preencher ou comece com uma página em branco. Você poderá editar tudo depois.</p>
       </div>
-      <p class="small-note">Apagar dados locais remove o rascunho e as preferências deste currículo neste navegador. Arquivos JSON já baixados não são apagados.</p>
+      <div id="character-grid" class="character-grid"></div>
+      <div class="characters-footer">
+        <div class="actions-row actions-row-compact">
+          <button type="button" class="btn btn-secondary" id="btn-start-new">Começar de novo</button>
+          <button type="button" class="btn btn-ghost btn-text-sm" id="btn-clear-local-data">Apagar dados locais</button>
+        </div>
+        <p class="small-note small-note-inline">Apagar dados locais remove o rascunho e as preferências deste currículo neste navegador. Arquivos JSON já baixados não são apagados.</p>
+      </div>
     </main>
 
-    <main id="screen-start" class="screen cv-main" hidden>
-      <div class="cv-split">
-        <div>
-          <p class="screen-eyebrow">Antes de começar</p>
-          <h1 class="screen-title">Monte seu currículo do seu jeito</h1>
-          <p class="screen-lead-tight">Escolha um modelo e marque as seções que deseja incluir. Você poderá alterar essas opções depois sem perder seus dados.</p>
-  
-          <p class="label-caps">Seções do currículo</p>
-          <div class="section-checklist-list" id="section-checklist">
-            <!-- JS will populate the checklist here using the new label structure -->
+    <main id="screen-start" class="screen cv-main screen-studio" hidden>
+      <div class="cv-split studio-split">
+        <div class="studio-pane-form">
+          <div class="studio-pane-head">
+            <p class="screen-eyebrow">Antes de começar</p>
+            <h1 class="screen-title">Monte seu currículo do seu jeito</h1>
+            <p class="screen-lead-tight">Escolha um modelo e marque as seções que deseja incluir. Você poderá alterar essas opções depois sem perder seus dados.</p>
           </div>
-          <p class="hint-text">Ative somente as seções relevantes. No computador, arraste as seções ativas pela alça para ordenar. No celular, use as setas.</p>
+
+          <div class="studio-pane-scroll">
+            <p class="label-caps">Seções do currículo</p>
+            <div class="section-checklist-list" id="section-checklist"></div>
+            <p class="hint-text">Ative somente as seções relevantes. Arraste pela alça ou use as setas para ordenar.</p>
+          </div>
 
           <div class="start-mobile-actions">
             <button type="button" class="btn btn-outline btn-mobile-preview" id="btn-toggle-preview-start">Ampliar prévia</button>
-            <button type="button" class="btn btn-ghost btn-mobile-preview" id="btn-change-template-start">Trocar modelo</button>
+            <button type="button" class="btn btn-secondary btn-mobile-preview" id="btn-change-template-start">Trocar modelo</button>
           </div>
 
-          <div class="actions-row">
+          <div class="actions-row studio-pane-footer">
             <button type="button" class="btn btn-primary btn-cta" id="btn-start-wizard">Começar a preencher</button>
             <button type="button" class="btn btn-ghost btn-text-sm" id="btn-back-start">← Voltar</button>
           </div>
         </div>
-  
-        <aside class="cv-aside">
-          <div class="aside-header">
+
+        <aside class="cv-aside studio-pane-preview">
+          <div class="aside-header-row">
             <span class="aside-title">Prévia</span>
-          </div>
-          <div class="gallery-grid">
-            <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-prev-template-start" aria-label="Modelo anterior">‹</button>
-            <div>
-              <div class="blueprint blueprint-flush">
-                <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-                <div class="preview-a4-wrap"><div data-preview class="preview-content template-classic"></div></div>
+            <div class="aside-model-bar">
+              <button type="button" class="btn btn-secondary btn-icon btn-icon-36" id="btn-prev-template-start" aria-label="Modelo anterior">‹</button>
+              <div class="aside-model-meta">
+                <span class="gallery-label" data-current-template id="start-gallery-label">Clássico</span>
+                <span class="gallery-counter" id="start-gallery-counter">1 de 8</span>
               </div>
-              <div class="gallery-footer">
-                <div>
-                  <div class="gallery-label" data-current-template id="start-gallery-label">Clássico</div>
-                  <div class="gallery-counter" id="start-gallery-counter">1 de 5</div>
-                </div>
-              </div>
-              <div class="aside-note">
-                <div class="aside-note-title">Leitura por ATS</div>
-                <div class="aside-note-text" id="start-ats-note"></div>
-              </div>
+              <button type="button" class="btn btn-secondary btn-icon btn-icon-36" id="btn-next-template-start" aria-label="Próximo modelo">›</button>
+              <button type="button" class="btn btn-ghost btn-sm-caps" data-open-template-modal>Ver todos</button>
             </div>
-            <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-next-template-start" aria-label="Próximo modelo">›</button>
           </div>
-          <div class="page-controls-gap" data-page-controls></div>
+          <div class="preview-stage">
+            <div class="blueprint blueprint-flush preview-stage-frame">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <div class="preview-a4-wrap"><div data-preview class="preview-content template-classic"></div></div>
+            </div>
+          </div>
+          <div class="aside-bottom-panel">
+            <div class="aside-note">
+              <span class="aside-note-title">Leitura por ATS:</span>
+              <span class="aside-note-text" id="start-ats-note"></span>
+            </div>
+            <div class="page-controls-gap-tight" data-page-controls></div>
+          </div>
         </aside>
       </div>
     </main>
 
     <!-- Wizard + Preview -->
-    <main id="screen-wizard" class="screen cv-main screen-with-bottom-bar" hidden>
-      <div class="cv-split">
-        <div>
-          <button type="button" class="btn btn-ghost btn-link-back" id="btn-wizard-to-start">← Voltar à configuração</button>
-          <nav id="wizard-timeline" class="wizard-timeline"></nav>
+    <main id="screen-wizard" class="screen cv-main screen-with-bottom-bar screen-studio" hidden>
+      <div class="cv-split studio-split">
+        <div class="studio-pane-form">
+          <div class="wizard-top-bar">
+            <button type="button" class="btn btn-ghost btn-link-back" id="btn-wizard-to-start">← Voltar à configuração</button>
+            <button type="button" class="btn btn-outline wizard-mobile-model" data-open-template-modal aria-label="Trocar modelo de currículo">
+              Modelo: <strong data-current-template>Clássico</strong>
+            </button>
+          </div>
+          <nav id="wizard-timeline" class="wizard-timeline" aria-label="Etapas do currículo"></nav>
           <hr class="rule-line">
 
-          <div class="step-header">
-            <h1 class="step-title" id="wizard-step-title"></h1>
-            <span class="step-counter" id="wizard-step-counter"></span>
-          </div>
-          <p class="step-desc" id="wizard-step-desc"></p>
+          <div class="wizard-form-scroll">
+            <div class="step-header">
+              <h1 class="step-title" id="wizard-step-title"></h1>
+              <span class="step-counter" id="wizard-step-counter"></span>
+            </div>
+            <p class="step-desc" id="wizard-step-desc"></p>
 
-          <form id="wizard-form" onsubmit="return false;">
-            <div id="wizard-steps"></div>
-          </form>
+            <form id="wizard-form">
+              <div id="wizard-steps"></div>
+            </form>
+          </div>
         </div>
 
-        <aside class="cv-aside">
+        <aside class="cv-aside studio-pane-preview">
           <div class="aside-header-row">
             <span class="aside-title">Prévia ao vivo</span>
-            <div class="template-nav">
-              <button class="btn-icon-28" type="button" id="btn-prev-template" aria-label="Modelo anterior">‹</button>
+            <div class="aside-model-bar">
+              <button class="btn btn-secondary btn-icon btn-icon-36" type="button" id="btn-prev-template" aria-label="Modelo anterior">‹</button>
               <span class="template-nav-label"><span data-current-template>Clássico</span></span>
-              <button class="btn-icon-28" type="button" id="btn-next-template" aria-label="Próximo modelo">›</button>
+              <button class="btn btn-secondary btn-icon btn-icon-36" type="button" id="btn-next-template" aria-label="Próximo modelo">›</button>
+              <button type="button" class="btn btn-ghost btn-sm-caps" data-open-template-modal>Ver todos</button>
             </div>
           </div>
-          <div class="blueprint blueprint-flush">
-            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-            <div class="preview-a4-wrap"><div data-preview class="preview-content template-classic"></div></div>
+          <div class="preview-stage">
+            <div class="blueprint blueprint-flush preview-stage-frame">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <div class="preview-a4-wrap"><div data-preview class="preview-content template-classic"></div></div>
+            </div>
           </div>
-          <div class="page-controls-gap-tight" data-page-controls></div>
-          <div class="aside-footer-center">
-            <button type="button" class="btn btn-outline btn-mobile-preview" id="btn-toggle-preview">Ampliar prévia</button>
+          <div class="aside-bottom-panel">
+            <div class="page-controls-gap-tight" data-page-controls></div>
           </div>
         </aside>
       </div>
@@ -187,85 +202,111 @@
       </div>
     </main>
 
-    <!-- Revisão final -->
-    <!-- Revisão final -->
-    <main id="screen-review" class="screen cv-main screen-wide" hidden>
-      <p class="screen-eyebrow">Revisão</p>
-      <h1 class="screen-title-spaced">Quase pronto: revise e escolha o visual</h1>
-
-      <div class="blueprint blueprint-pad">
-        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-        <div id="review-content" class="review-panel review-panel-flush"></div>
-      </div>
-
-      <p class="label-caps-loose">Escolha um modelo. Use as setas para ver as opções.</p>
-      <div class="gallery-grid-review">
-        <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-gal-prev" aria-label="Modelo anterior">‹</button>
-        <div>
-          <div class="blueprint blueprint-outlined" id="review-gallery-frame">
-            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-            <div class="preview-a4-wrap"><div id="review-gallery-preview" class="preview-content template-classic"></div></div>
+    <!-- Revisão final em Estúdio -->
+    <main id="screen-review" class="screen cv-main screen-wide screen-studio" hidden>
+      <div class="cv-split studio-split review-studio-split">
+        <div class="studio-pane-form review-pane-left">
+          <div class="studio-pane-head">
+            <p class="screen-eyebrow">Revisão</p>
+            <h1 class="screen-title-spaced">Quase pronto: revise e escolha o visual</h1>
           </div>
-          <div class="gallery-footer">
-            <div>
-              <div class="gallery-label" id="review-gallery-label">Clássico</div>
-              <div class="gallery-counter" id="review-gallery-counter">1 de 5</div>
+
+          <div class="blueprint blueprint-pad review-card-scroll">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div id="review-content" class="review-panel review-panel-flush"></div>
+          </div>
+
+          <div class="review-actions review-actions-row">
+            <button type="button" class="btn btn-secondary btn-md" id="btn-back-wizard">Voltar a editar</button>
+            <button type="button" class="btn btn-ghost btn-text-sm" id="btn-export-json-review">Salvar .json</button>
+            <button type="button" class="btn btn-ghost btn-text-sm" id="btn-print-review">Imprimir</button>
+            <button type="button" class="btn btn-secondary btn-md-icon" id="btn-guide"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 1 1 0-4.13 2.07 2.07 0 0 1 0 4.13zM7.12 20.45H3.55V9h3.57v11.45z"></path></svg>Guia LinkedIn</button>
+            <a href="../#vagas" class="btn btn-secondary btn-md" id="btn-review-find-jobs" title="Buscar vagas abertas no catálogo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+              Buscar vagas
+            </a>
+            <button type="button" class="btn btn-primary btn-cta-lg" id="btn-export-pdf">Baixar currículo em PDF</button>
+          </div>
+          <p class="small-note small-note-tight">O currículo é baixado diretamente em PDF, pronto para envio.</p>
+        </div>
+
+        <div class="review-pane-right studio-pane-preview">
+          <div class="aside-header-row">
+            <span class="aside-title">Modelo e formato</span>
+            <div class="aside-model-bar">
+              <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-gal-prev" aria-label="Modelo anterior">‹</button>
+              <div class="aside-model-meta">
+                <span class="gallery-label" id="review-gallery-label">Clássico</span>
+                <span class="gallery-counter" id="review-gallery-counter">1 de 8</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-gal-next" aria-label="Próximo modelo">›</button>
+              <button type="button" class="btn btn-ghost btn-sm-caps" data-open-template-modal>Ver todos</button>
             </div>
           </div>
+          <div class="preview-stage review-preview-stage">
+            <div class="blueprint blueprint-outlined preview-stage-frame" id="review-gallery-frame">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <div class="preview-a4-wrap"><div id="review-gallery-preview" class="preview-content template-classic"></div></div>
+            </div>
+          </div>
+          <div class="aside-bottom-panel">
+            <div class="page-controls-centered" data-page-controls></div>
+          </div>
         </div>
-        <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-gal-next" aria-label="Próximo modelo">›</button>
       </div>
-
-      <div class="page-controls-centered" data-page-controls></div>
-
-      <div class="review-actions review-actions-row">
-        <button type="button" class="btn btn-secondary btn-md" id="btn-back-wizard">Voltar a editar</button>
-        <button type="button" class="btn btn-ghost btn-text-sm" id="btn-export-json-review">Salvar rascunho (.json)</button>
-        <span class="review-actions-spacer spacer-flex"></span>
-        <a href="../#vagas" class="btn btn-secondary btn-md" id="btn-review-find-jobs" title="Buscar vagas abertas no catálogo">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
-          Buscar vagas abertas
-        </a>
-        <button type="button" class="btn btn-secondary btn-md-icon" id="btn-guide"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 1 1 0-4.13 2.07 2.07 0 0 1 0 4.13zM7.12 20.45H3.55V9h3.57v11.45z"></path></svg>Ver guia do LinkedIn</button>
-        <button type="button" class="btn btn-primary btn-cta-lg" id="btn-export-pdf">Baixar currículo em PDF</button>
-      </div>
-      <p class="small-note">O currículo é baixado diretamente em PDF, pronto para envio.</p>
     </main>
 
     <!-- Guia LinkedIn -->
-    <main id="screen-guide" class="screen cv-main screen-narrow" hidden>
-      <p class="screen-eyebrow">Depois do currículo</p>
-      <h1 class="screen-title">Leve o mesmo cuidado para o LinkedIn</h1>
-      <p class="screen-lead">O LinkedIn pode complementar seu currículo. Use estas orientações para manter as informações claras e consistentes nos dois lugares.</p>
-      
-      <div id="guide-content" class="guide-content guide-list"></div>
-      
-      <div class="actions-row-loose">
+    <main id="screen-guide" class="screen cv-main screen-wide screen-studio" hidden>
+      <div class="studio-pane-head">
+        <p class="screen-eyebrow">Depois do currículo</p>
+        <h1 class="screen-title">Leve o mesmo cuidado para o LinkedIn</h1>
+        <p class="screen-lead">O LinkedIn pode complementar seu currículo. Use estas orientações para manter as informações claras e consistentes nos dois lugares.</p>
+      </div>
+
+      <div id="guide-content" class="guide-content guide-list studio-pane-scroll"></div>
+
+      <div class="actions-row studio-pane-footer">
         <button type="button" class="btn btn-secondary btn-md" id="btn-back-review">← Voltar à revisão</button>
       </div>
     </main>
 
-    <!-- Preview mobile dock -->
-    <aside id="preview-mobile-dock" class="preview-mobile-dock" aria-label="Prévia do currículo">
-      <button type="button" class="preview-mobile-dock-btn" id="btn-expand-mobile-preview" aria-label="Ver prévia do currículo">
+    <!-- Preview mobile/tablet dock -->
+    <aside id="preview-mobile-dock" class="preview-mobile-dock" aria-label="Prévia do currículo" hidden>
+      <button type="button" class="preview-mobile-dock-btn" id="btn-expand-mobile-preview" aria-label="Ver prévia e ajustar visual do currículo">
         <span class="preview-mobile-dock-icon" aria-hidden="true">▣</span>
-        <span class="preview-mobile-dock-label">Ver prévia</span>
+        <span class="preview-mobile-dock-label">Prévia e visual</span>
         <span id="preview-mobile-fit" class="preview-mobile-fit">1 página</span>
       </button>
     </aside>
     </div>
 
-    <!-- Preview mobile overlay -->
+    <!-- Preview mobile/tablet overlay -->
     <div id="preview-overlay" class="preview-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="preview-overlay-title">
       <div class="preview-overlay-inner">
         <div class="preview-overlay-header bottom-sheet-header">
           <div class="bottom-sheet-drag-handle"></div>
-          <h2 id="preview-overlay-title">Prévia do currículo</h2>
-          <p class="preview-overlay-tip">Deslize para ver o currículo completo.</p>
+          <div>
+            <h2 id="preview-overlay-title">Prévia e ajustes visuais</h2>
+            <p class="preview-overlay-tip">Troque modelo, margens e espaçamento em tempo real.</p>
+          </div>
           <button type="button" class="btn btn-ghost" id="btn-close-preview" aria-label="Fechar prévia">✕</button>
         </div>
+        <div class="preview-overlay-controls">
+          <div class="preview-overlay-model-row">
+            <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-prev-template-overlay" aria-label="Modelo anterior">‹</button>
+            <button type="button" class="btn btn-ghost preview-overlay-model-btn" data-open-template-modal>
+              <strong data-current-template>Clássico</strong>
+              <span>Ver todos os modelos</span>
+            </button>
+            <button type="button" class="btn btn-secondary btn-icon btn-icon-44" id="btn-next-template-overlay" aria-label="Próximo modelo">›</button>
+          </div>
+          <div data-page-controls></div>
+        </div>
         <div class="preview-paper-wrap">
-          <div data-preview class="preview-content"></div>
+          <div class="preview-a4-wrap preview-overlay-a4">
+            <div data-preview class="preview-content template-classic"></div>
+          </div>
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ const EuGeroUtils = (function () {
     try {
       const url = new URL(withScheme);
       return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '';
-    } catch (_) {
+    } catch {
       return '';
     }
   }

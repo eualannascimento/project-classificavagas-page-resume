@@ -1,11 +1,11 @@
-/* Eu Gero Meu Currículo — estilos */
+/* Eu Gero Meu Currículo - estilos */
 
 [hidden] {
   display: none !important;
 }
 
 :root {
-  /* Tokens do design de referencia (Industry) — fonte da verdade */
+  /* Tokens do design de referencia (Industry) - fonte da verdade */
   --color-bg: #f2f2f3;
   --color-surface: #e9e9ea;
   --color-text: #1d1f20;
@@ -82,7 +82,7 @@
   --radius-lg: 7px;
   --radius-xl: 7px;
 
-  /* Elevacao — sombras suaves tingidas de tinta */
+  /* Elevacao - sombras suaves tingidas de tinta */
   --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
   --shadow: var(--shadow-sm);
   --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
@@ -291,7 +291,7 @@ a:hover { color: var(--color-accent-700); }
   outline-offset: 2px;
 }
 
-/* Header — compacto */
+/* Header - compacto */
 .app-header {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
@@ -542,102 +542,71 @@ textarea.cv-input { min-height: 104px; resize: vertical; line-height: 1.5; }
 }
 
 @media (max-width: 560px) {
-  .cv-tip-pop { width: 160px; }
-}
-
-@media (max-width: 560px) {
-  .cv-tip-pop { width: 160px; }
+  .cv-tip-pop {
+    width: 190px;
+    left: auto;
+    right: -12px;
+    transform: none;
+  }
 }
 
 /* Grids e Layouts Utilitários */
 .cv-main {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--max-width, 1280px);
   margin: 0 auto;
-  padding: 8px 24px 40px;
-  animation: cvfade .35s ease;
+  padding: 6px 24px 28px;
+  animation: cvfade .28s ease;
 }
 
-@keyframes cvfade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cvfade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .cv-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
+  gap: 32px;
   align-items: start;
 }
 
 .cv-form2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* So aparece junto com o dock/menu mobile, quando a previa lateral (.cv-aside) sai da tela. */
+/* Aparece em tablet retrato e celular (< 1024px), quando .cv-aside sai de cena. */
 .start-mobile-actions {
   display: none;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 4px 0 18px;
+  margin: 10px 0 14px;
 }
 .start-mobile-actions .btn { min-height: 44px; }
 
-@media (max-width: 900px) {
-  .cv-split { grid-template-columns: 1fr; gap: 22px; }
-  .cv-form2 { grid-template-columns: 1fr !important; }
+@media (max-width: 1023px) {
+  .cv-split { grid-template-columns: 1fr; gap: 20px; }
   .cv-main { padding-left: 16px; padding-right: 16px; }
-  /* No mobile a previa lateral sai da tela; abre pelo botao discreto (dock). */
-  .cv-aside { display: none; }
+  #screen-start .cv-aside,
+  #screen-wizard .cv-aside { display: none; }
   .start-mobile-actions { display: flex; }
-
-  /* ---- Menos scroll no celular, mantendo o design ---- */
-  /* (As regras da home vivem no bloco "Home mobile compacta" no fim do arquivo.) */
-
-  /* Selecao de personagem: galeria 3 colunas x 2 linhas */
-  #screen-characters h1 { font-size: 26px !important; }
-  #screen-characters h1 + p { font-size: 13.5px !important; margin-bottom: 14px !important; }
-  #screen-characters .character-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-
-  #screen-characters .character-card { padding: 12px 6px 10px; gap: 5px; }
-  #screen-characters .character-avatar { width: 40px; height: 40px; font-size: 16px; }
-  #screen-characters .character-kicker { display: none; }
-  #screen-characters .character-name { font-size: 12.5px; line-height: 1.15; }
-  #screen-characters .character-role { display: none; }
-  #screen-characters .character-cta { display: none; }
-
-  /* Start: espacamentos levemente menores; nota auxiliar sai */
-  #screen-start h1 { font-size: 26px !important; margin-bottom: 8px !important; }
-  #screen-start h1 + p { margin-bottom: 14px !important; font-size: 13.5px !important; }
-  #section-checklist .section-check { padding: 9px 12px !important; }
-  #section-checklist strong { font-size: 15px !important; }
-  #section-checklist + p { display: none; }
-  #screen-start div[style*="margin-top: 26px"] { margin-top: 16px !important; }
-
-  /* Review: setas sobre o cartao, cabecalho compacto */
-  #screen-review h1 { font-size: 26px !important; }
-  #screen-review .blueprint[style*="padding: 24px"] { padding: 16px !important; }
-  #screen-review > div[style*="grid-template-columns: auto"] {
-    display: block !important;
-    position: relative;
-  }
-  #btn-gal-prev, #btn-gal-next {
-    position: absolute;
-    top: 42%;
-    z-index: 5;
-    width: 44px !important;
-    height: 44px !important;
-    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
-    backdrop-filter: blur(4px);
-  }
-  #btn-gal-prev { left: 4px; }
-  #btn-gal-next { right: 4px; }
-  #screen-review > div[style*="grid-template-columns: auto"] > div { max-width: none; }
 }
 
-/* Abaixo de 430px, 3 colunas deixam cada card com ~103px e quebram nomes como
-   "Chapeuzinho Vermelho" em tres linhas. Duas colunas mantem a galeria
-   compacta e legivel. Fica fora do bloco de 900px porque @media aninhado em
-   @media nao e valido e invalida o restante do bloco. */
-@media (max-width: 430px) {
-  #screen-characters .character-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 680px) {
+  .cv-form2 { grid-template-columns: 1fr !important; }
+
+  #screen-characters h1 { font-size: 26px; }
+  #screen-characters .screen-lead { font-size: 13.5px; margin-bottom: 12px; }
+  #screen-characters .character-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  #screen-characters .character-card { padding: 14px 10px 12px; gap: 6px; }
+  #screen-characters .character-avatar { width: 42px; height: 42px; font-size: 16px; }
+  #screen-characters .character-name { font-size: 14px; line-height: 1.15; }
+  #screen-characters .character-role { font-size: 12px; line-height: 1.35; }
+  #screen-characters .character-cta { font-size: 11.5px; }
+
+  #screen-start h1,
+  #screen-review h1 { font-size: 26px; margin-bottom: 8px; }
+  #screen-start .screen-lead-tight { margin-bottom: 12px; font-size: 13.5px; }
+  #section-checklist .section-check { padding: 8px 10px; }
+  #section-checklist strong { font-size: 14.5px; }
+  .blueprint-pad { padding: 14px; }
 }

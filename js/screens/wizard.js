@@ -144,41 +144,11 @@ const EuGeroWizardScreen = (function () {
     renderWizardTimeline();
   }
 
-  function fieldErrorId(section, field, index) {
-    if (index != null) return `error-${section.id}-${index}-${field.key}`;
-    return `error-${section.id}-${field.key}`;
-  }
-
   function renderFieldTip(field) {
     if (!field.tip) return '';
     return `
-      <span class="cv-help" tabindex="0" aria-label="Ver dica do campo">?<span class="cv-tip-pop">${ctx.escapeHtml(field.tip)}</span></span>
+      <span class="cv-help" role="button" tabindex="0" aria-label="Ver dica do campo">?<span class="cv-tip-pop">${ctx.escapeHtml(field.tip)}</span></span>
     `;
-  }
-
-  function getFieldIdealMax(field) {
-    if (field.idealMax) return field.idealMax;
-    if (field.actionVerbs) {
-      if (field.key === 'summary') return 550;
-      return 260;
-    }
-    if (field.key === 'skillsText') return 180;
-    return 120;
-  }
-
-  function renderCharCounter(wrap, field, getValue) {
-    const idealMax = getFieldIdealMax(field);
-    const counter = document.createElement('span');
-    counter.className = 'char-counter';
-    counter.setAttribute('aria-live', 'polite');
-    const update = () => {
-      const len = (getValue() || '').length;
-      counter.textContent = `${len}/${idealMax}`;
-      counter.classList.toggle('char-counter-over', len > idealMax);
-    };
-    update();
-    wrap.appendChild(counter);
-    return update;
   }
 
   function clearFieldValidation(scope) {
@@ -332,7 +302,8 @@ const EuGeroWizardScreen = (function () {
   }
 
   function renderField(section, field, options = {}) {
-    const wrap = document.createElement('label');
+    const isCompound = field.type === 'skillsTags' || field.type === 'monthYear';
+    const wrap = document.createElement(isCompound ? 'div' : 'label');
     wrap.className = 'field-group' + (field.fullWidth ? ' field-full' : '');
     wrap.style.display = 'block';
     if (field.fullWidth) wrap.style.gridColumn = '1 / -1';
@@ -553,7 +524,6 @@ const EuGeroWizardScreen = (function () {
           }
         } else if (item.endCurrent) {
           item.endDate = '';
-          const endField = section.itemFields?.find((f) => f.key === 'endDate');
           const endWrap = wrap.closest('.list-item-card')?.querySelector('[data-field="endDate"]');
           if (endWrap) {
             const endMonth = endWrap.querySelector('.month-year-month');
@@ -579,8 +549,8 @@ const EuGeroWizardScreen = (function () {
     const tags = EuGeroConfig.parseSkillsText(value || state.skillsText);
 
     wrap.innerHTML = `
-      <span class="wizard-field-note">${field.label}${renderFieldTip(field)}</span>
-      <input type="text" id="${id}" class="cv-input" placeholder="${ctx.escapeAttr(field.placeholder || 'Digite uma habilidade…')}" autocomplete="off">
+      <div class="wizard-field-note"><label for="${id}">${field.label}</label>${renderFieldTip(field)}</div>
+      <input type="text" id="${id}" class="cv-input" placeholder="${ctx.escapeAttr(field.placeholder || 'Digite uma habilidade')}" autocomplete="off">
       <div class="skills-tags-chips" role="list"></div>
       <p class="skills-suggest-title">Sugestões para adicionar</p>
       <div class="skills-suggest-row"></div>

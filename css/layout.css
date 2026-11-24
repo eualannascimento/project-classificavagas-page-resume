@@ -1,4 +1,4 @@
-/* Screens — animação de entrada */
+/* Screens - animação de entrada */
 @keyframes screen-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -232,8 +232,8 @@
   #wizard-step-desc { margin-bottom: 14px !important; }
   #screen-wizard { padding-bottom: 150px !important; }
   #screen-wizard .list-item-card.blueprint { padding: 14px !important; }
-  #screen-wizard .cv-form2[style*="1fr 1fr auto"] { grid-template-columns: 1fr 1fr !important; }
-  #screen-wizard .cv-form2[style*="1fr 1fr auto"] .btn-remove-item { grid-column: 1 / -1; justify-self: start; }
+  #screen-wizard .lang-row { grid-template-columns: 1fr 1fr; }
+  #screen-wizard .lang-row .btn-remove-item { grid-column: 1 / -1; justify-self: start; }
 
   /* Barra inferior compacta: botoes maiores, sem texto de progresso */
   .wizard-bottom-inner {
@@ -318,7 +318,7 @@
   margin-top: 2rem;
 }
 
-/* Form fields — compact grid */
+/* Form fields - compact grid */
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -506,7 +506,7 @@ body.modal-open {
   font-weight: 500;
 }
 
-/* List sections — compact */
+/* List sections - compact */
 /* .list-item-card / botoes: estilos vem inline do JS, iguais ao modelo. */
 .list-item-card { border-radius: 0; }
 
