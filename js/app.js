@@ -57,11 +57,42 @@
     EuGeroReviewScreen.init(ctx);
   }
 
+  function updateThemeToggleLabel(theme) {
+    const btn = document.getElementById('btn-theme-toggle');
+    if (!btn) return;
+    const names = { light: 'Claro', dark: 'Escuro', black: 'Preto' };
+    const nextNames = { light: 'Escuro', dark: 'Preto', black: 'Claro' };
+    const current = theme || document.documentElement.getAttribute('data-theme') || 'light';
+    btn.title = `Tema: ${names[current] || current} - clique para alternar para ${nextNames[current] || 'Claro'}`;
+    btn.setAttribute('aria-label', `Alternar tema (atual: ${names[current] || current})`);
+  }
+
+  function updateCrossSiteLinks() {
+    if (typeof window === 'undefined' || !window.location) return;
+    const hostname = window.location.hostname || '';
+    const protocol = window.location.protocol || '';
+    const isProd = hostname === 'classificavagas.com';
+    const isLocalFile = protocol === 'file:';
+    const vagasTarget = isProd ? '/#vagas' : (isLocalFile ? '../project-classificavagas-page-jobs/index.html#vagas' : '../#vagas');
+    const homeTarget = isProd ? '/#home' : (isLocalFile ? '../project-classificavagas-page-jobs/index.html#home' : '../#home');
+
+    if (typeof document !== 'undefined' && document.querySelectorAll) {
+      document.querySelectorAll('a[href*="#vagas"]').forEach((link) => {
+        link.href = vagasTarget;
+      });
+      document.querySelectorAll('a[href*="#home"]').forEach((link) => {
+        link.href = homeTarget;
+      });
+    }
+  }
+
   function init() {
     cacheElements();
     ensureToastStructure();
     initScreens();
     bindGlobalEvents();
+    updateThemeToggleLabel();
+    updateCrossSiteLinks();
 
     // Sem hash na URL, sempre abrir na home; deep links por hash continuam valendo.
     const initialRoute = EuGeroRouter.getInitialRoute();
@@ -273,6 +304,12 @@
     EuGeroStartScreen.renderTemplatePickers();
 
     document.getElementById('btn-go-home')?.addEventListener('click', (e) => { e.preventDefault(); navigateTo('characters'); });
+    document.getElementById('btn-theme-toggle')?.addEventListener('click', () => {
+      if (window.cvThemeInit) {
+        const next = window.cvThemeInit.cycleTheme();
+        updateThemeToggleLabel(next);
+      }
+    });
     // O mesmo atalho existe como card na galeria de personagens (ver screens/start.js).
     document.getElementById('btn-import-characters')?.addEventListener('click', () => els.fileImport?.click());
     document.getElementById('btn-start-new')?.addEventListener('click', startNewDraft);

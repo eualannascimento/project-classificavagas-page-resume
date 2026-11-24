@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  max-width: 1180px;
+  max-width: var(--max-width, 1180px);
   margin: 0 auto;
   padding: 12px 24px;
 }
@@ -74,19 +74,19 @@
 }
 
 .screen-wide {
-  max-width: 1180px;
+  max-width: var(--max-width, 1180px);
   margin: 0 auto;
   padding: 8px 24px 60px;
 }
 
 .screen-narrow {
-  max-width: 900px;
+  max-width: min(1040px, var(--max-width, 1180px));
   margin: 0 auto;
   padding: 8px 24px 60px;
 }
 
 .screen-with-bottom-bar {
-  padding-bottom: 120px;
+  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
 }
 
 .screen-eyebrow {
@@ -367,12 +367,14 @@
   bottom: 0;
   background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-top: 1px solid var(--color-divider);
   z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .wizard-bottom-inner {
-  max-width: 1180px;
+  max-width: var(--max-width, 1180px);
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;

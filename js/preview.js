@@ -11,7 +11,8 @@ const EuGeroPreview = (function () {
     // Sem esquema http(s) valido o valor vira texto puro: melhor mostrar o que
     // a pessoa digitou do que entregar um link executavel.
     if (!href) return escapeHtml(url);
-    return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+    const display = url.length > 40 ? `${url.slice(0, 37)}...` : url;
+    return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
   }
 
   function buildContactParts(personal) {
@@ -75,9 +76,11 @@ const EuGeroPreview = (function () {
     if (hasEducationData(items)) {
       const html = items.filter(e => e.institution || e.degree).map(e => `
         <article class="cv-item">
-          <strong>${escapeHtml(e.degree || 'Curso')}</strong>
+          <div class="cv-item-header">
+            <strong>${escapeHtml(e.degree || 'Curso')}</strong>
+            <span class="cv-period">${escapeHtml(e.period || formatPeriod(e.startDate, e.endDate))}</span>
+          </div>
           <div class="cv-item-sub">${escapeHtml(e.institution || '')}</div>
-          <span class="cv-period">${escapeHtml(e.period || formatPeriod(e.startDate, e.endDate))}</span>
         </article>
       `).join('');
       return renderSection('Formação', html);
@@ -88,8 +91,8 @@ const EuGeroPreview = (function () {
   function renderSkills(state, showSkeleton) {
     const skills = getSkillsFromState(state);
     if (skills.length) {
-      // Linha única separada por "·", igual ao modelo.
-      const html = `<p class="cv-summary">${skills.map(s => escapeHtml(s.name || s)).join('  ·  ')}</p>`;
+      // Linha única separada por "·", com non-breaking space para o marcador não orfanar na linha seguinte.
+      const html = `<p class="cv-summary">${skills.map(s => escapeHtml(s.name || s)).join('&nbsp;· ')}</p>`;
       return renderSection('Habilidades', html);
     }
     return showSkeleton ? renderSkeletonSection('Habilidades') : '';
@@ -99,7 +102,7 @@ const EuGeroPreview = (function () {
     if (hasListData(items, ['language'])) {
       const line = items.filter(l => l.language)
         .map(l => `${escapeHtml(l.language)}${l.level ? ` (${escapeHtml(l.level)})` : ''}`)
-        .join('  ·  ');
+        .join('&nbsp;· ');
       return renderSection('Idiomas', `<p class="cv-summary">${line}</p>`);
     }
     return showSkeleton ? renderSkeletonSection('Idiomas') : '';
@@ -138,7 +141,12 @@ const EuGeroPreview = (function () {
         <article class="cv-item"><strong>${escapeHtml(p.name)}</strong>${p.description ? `<p class="cv-desc">${escapeHtml(p.description).replace(/\n/g, '<br>')}</p>` : ''}</article>
       `, showSkeleton),
       volunteering: renderGenericList('Voluntariado', state.volunteering, ['organization'], v => `
-        <article class="cv-item"><strong>${escapeHtml(v.role || 'Função')}</strong> · ${escapeHtml(v.organization)}<span class="cv-period">${escapeHtml(formatPeriod(v.startDate, v.endDate, v.endCurrent))}</span></article>
+        <article class="cv-item">
+          <div class="cv-item-header">
+            <strong>${escapeHtml(v.role || 'Função')} · ${escapeHtml(v.organization)}</strong>
+            <span class="cv-period">${escapeHtml(formatPeriod(v.startDate, v.endDate, v.endCurrent))}</span>
+          </div>
+        </article>
       `, showSkeleton),
       publications: renderGenericList('Publicações', state.publications, ['title'], pub => `
         <article class="cv-item"><strong>${escapeHtml(pub.title)}</strong><div class="cv-item-sub">${escapeHtml(pub.publisher || '')}</div></article>
@@ -191,8 +199,8 @@ const EuGeroPreview = (function () {
           ${showLanguagesBlock ? `
             <div class="cv-sidebar-section">
               <h3>Idiomas</h3>
-              ${state.languages?.length
-                ? state.languages.map(l => `<p>${escapeHtml(l.language)}${l.level ? ` - ${escapeHtml(l.level)}` : ''}</p>`).join('')
+              ${state.languages?.some(l => l.language)
+                ? state.languages.filter(l => l.language).map(l => `<p>${escapeHtml(l.language)}${l.level ? ` (${escapeHtml(l.level)})` : ''}</p>`).join('')
                 : '<p class="cv-muted">Seus idiomas</p>'}
             </div>
           ` : ''}
@@ -210,7 +218,7 @@ const EuGeroPreview = (function () {
         <header class="cv-header-classic">
           <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
           <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
-          <p class="cv-contacts">${contacts.length ? contacts.join(' · ') : 'e-mail · telefone · cidade'}</p>
+          <p class="cv-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'e-mail · telefone · cidade'}</p>
         </header>
         <div class="cv-body">${content}</div>
       </div>
@@ -219,14 +227,14 @@ const EuGeroPreview = (function () {
 
   function renderBannerLayout(state, enabledSections, templateId, mode) {
     const { personal, content } = buildContent(state, enabledSections, { sidebarLayout: false, mode });
-    const contacts = [personal.email, personal.phone, personal.location].filter(Boolean);
+    const contacts = buildContactParts(personal);
 
     return `
       <div class="cv cv-executive template-${templateId || 'marinho'}">
         <header class="cv-banner">
           <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
           <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
-          <p class="cv-contacts">${contacts.map(c => escapeHtml(c)).join(' · ')}</p>
+          <p class="cv-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'e-mail · telefone · cidade'}</p>
         </header>
         <div class="cv-body">${content}</div>
       </div>
@@ -242,7 +250,7 @@ const EuGeroPreview = (function () {
         <header class="cv-header-left">
           <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
           <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
-          <p class="cv-contacts">${contacts.length ? contacts.join(' · ') : 'contato@email.com · cidade'}</p>
+          <p class="cv-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'contato@email.com · cidade'}</p>
         </header>
         <div class="cv-body">${content}</div>
       </div>
@@ -265,7 +273,7 @@ const EuGeroPreview = (function () {
           <div class="cv-creative-id">
             <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
             <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
-            <p class="cv-contacts">${contacts.length ? contacts.join(' · ') : 'e-mail · telefone · cidade'}</p>
+            <p class="cv-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'e-mail · telefone · cidade'}</p>
           </div>
         </header>
         <div class="cv-body">${content}</div>

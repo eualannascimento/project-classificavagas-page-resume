@@ -1808,6 +1808,33 @@ console.log('\nPDF - truncamento do texto exibido do LinkedIn:');
   assert(link.args[3].url === urlLonga, 'href do link continua sendo a URL completa, sem truncar');
 }
 
+// --- Correcao 5: sem ponto orfao em habilidades e sem colisao com linha divisoria ---
+console.log('\nPDF - sem ponto orfao e sem colisao com linha divisoria:');
+{
+  const { doc } = createFakeDoc();
+  const mulanSkills = [
+    'Liderança de Equipes', 'Planejamento Estratégico', 'Logística de Campo',
+    'Adaptabilidade', 'Disciplina e Consistência', 'Comunicação Interpessoal'
+  ];
+  const wrapped = EuGeroPdfExport.wrapInlineItems(doc, mulanSkills, 178);
+  assert(wrapped.length >= 2, 'Habilidades longas quebram em multiplas linhas');
+  assert(wrapped.every((line) => !/^\s*·/.test(line)), 'Nenhuma linha comeca com ponto separador orfao');
+
+  const { doc: doc2, calls: calls2 } = createFakeDoc();
+  const palette2 = EuGeroPdfExport.accentPalette('#1e3a5f');
+  const cursor2 = { x: 16, y: 40, margin: 16, colWidth: 178 };
+  const density2 = { fontPt: 10.5, lineHeightMult: 1.35 };
+  EuGeroPdfExport.drawSectionHeading(doc2, cursor2, 'Experiência', 16, 178, palette2, density2, false);
+  EuGeroPdfExport.drawBlocks(doc2, cursor2, [
+    { type: 'item', title: 'Gerente de Operações de Campo', sub: 'Guarda Imperial', period: '2019 - Atual', desc: 'Lidera equipe.' }
+  ], 16, 178, palette2, density2, false);
+  const lineCall = calls2.find((c) => c.method === 'line');
+  const itemCall = calls2.find((c) => c.method === 'text' && c.args[0] === 'Gerente de Operações de Campo');
+  const titleAscentMm = (10.5 + 1.5) * (25.4 / 72) * 0.8;
+  assert((itemCall.args[2] - titleAscentMm) > lineCall.args[1] + 1.5,
+    'Topo do cargo fica abaixo da linha divisoria com folga visivel');
+}
+
 setTimeout(() => {
   pendingAsyncTests.then(() => {
     assert(debounceCalls === 1, 'debounce cancela chamadas anteriores e executa só a última');

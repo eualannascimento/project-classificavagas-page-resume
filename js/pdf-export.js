@@ -51,8 +51,11 @@ const EuGeroPdfExport = (function () {
     return `${start || ''}${start && end ? ' - ' : ''}${isCurrent ? 'Atual' : (end || '')}`;
   }
 
-  function textBlock(text) {
-    return text ? [{ type: 'text', text }] : [];
+  function textBlock(text, items) {
+    if (!text) return [];
+    const block = { type: 'text', text };
+    if (Array.isArray(items)) block.items = items;
+    return [block];
   }
 
   function itemBlocks(items, mapper) {
@@ -101,13 +104,14 @@ const EuGeroPdfExport = (function () {
 
     const skills = EuGeroConfig.getSkillsFromState(state);
     if (enabledSet.has('skills') && skills.length) {
-      sections.push({ id: 'skills', title: 'Habilidades', blocks: textBlock(skills.map((s) => s.name || s).join('  ·  ')) });
+      const skillItems = skills.map((s) => String(s.name || s).trim()).filter(Boolean);
+      sections.push({ id: 'skills', title: 'Habilidades', blocks: textBlock(skillItems.join(' · '), skillItems) });
     }
 
     if (enabledSet.has('languages') && (state.languages || []).some((l) => l.language?.trim?.())) {
-      const line = state.languages.filter((l) => l.language)
-        .map((l) => `${l.language}${l.level ? ` (${l.level})` : ''}`).join('  ·  ');
-      sections.push({ id: 'languages', title: 'Idiomas', blocks: textBlock(line) });
+      const langItems = state.languages.filter((l) => l.language?.trim?.())
+        .map((l) => `${l.language.trim()}${l.level ? ` (${l.level.trim()})` : ''}`);
+      sections.push({ id: 'languages', title: 'Idiomas', blocks: textBlock(langItems.join(' · '), langItems) });
     }
 
     const listSection = (id, title, items, keys, mapper) => {
@@ -164,32 +168,95 @@ const EuGeroPdfExport = (function () {
     doc.setFontSize(sizePt);
   }
 
-  function drawWrappedText(doc, cursor, text, x, width, sizePt, lineHeightMult, color, onNewPage) {
+  function drawWrappedLines(doc, cursor, lines, x, sizePt, lineHeightMult, color, onNewPage) {
     doc.setTextColor(color[0], color[1], color[2]);
-    const lines = doc.splitTextToSize(text, width);
     const lineHeightMm = sizePt * PT_TO_MM * lineHeightMult;
+    const ascentMm = sizePt * PT_TO_MM * 0.8;
     lines.forEach((line) => {
       ensureSpace(doc, cursor, lineHeightMm, onNewPage);
-      doc.text(line, x, cursor.y + sizePt * PT_TO_MM * 0.8);
+      doc.text(line, x, cursor.y + ascentMm);
       cursor.y += lineHeightMm;
     });
   }
 
-  function drawSectionHeading(doc, cursor, title, x, width, palette, density, hasFonts, skipDivider, onNewPage) {
-    ensureSpace(doc, cursor, 8, onNewPage);
-    cursor.y += 3;
-    setFont(doc, 'BarlowCondensed', 'bold', density.fontPt + 1.5, hasFonts);
-    doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
+  function drawWrappedText(doc, cursor, text, x, width, sizePt, lineHeightMult, color, onNewPage) {
+    const paragraphs = String(text || '').split(/\r?\n/);
+    paragraphs.forEach((para) => {
+      const lines = doc.splitTextToSize(para, width);
+      drawWrappedLines(doc, cursor, lines, x, sizePt, lineHeightMult, color, onNewPage);
+    });
+  }
+
+  // Quebra lista inline ("Item A · Item B · Item C") colando " ·" na ultima
+  // palavra de cada item (exceto o ultimo), impedindo ponto orfao no inicio de linha.
+  function wrapInlineItems(doc, items, width) {
+    const tokens = [];
+    items.forEach((raw, itemIdx) => {
+      const words = String(raw || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      if (itemIdx < items.length - 1) {
+        words[words.length - 1] = `${words[words.length - 1]}  · `;
+      }
+      tokens.push(...words);
+    });
+    const lines = [];
+    let current = '';
+    tokens.forEach((token) => {
+      const sep = current.endsWith('· ') ? ' ' : (current ? ' ' : '');
+      const candidate = current ? `${current}${sep}${token}` : token;
+      if (!current) {
+        if (doc.getTextWidth(token.trimEnd()) <= width) {
+          current = token;
+        } else {
+          const split = doc.splitTextToSize(token.trimEnd(), width);
+          lines.push(...split.slice(0, -1));
+          current = split[split.length - 1] || '';
+        }
+      } else if (doc.getTextWidth(candidate.trimEnd()) <= width) {
+        current = candidate;
+      } else {
+        lines.push(current.trimEnd());
+        current = token;
+      }
+    });
+    if (current) lines.push(current.trimEnd());
+    return lines;
+  }
+
+  function drawInlineItems(doc, cursor, items, x, width, sizePt, lineHeightMult, color, onNewPage) {
+    const lines = wrapInlineItems(doc, items, width);
+    drawWrappedLines(doc, cursor, lines, x, sizePt, lineHeightMult, color, onNewPage);
+  }
+
+  function drawSectionHeading(doc, cursor, title, x, width, palette, density, hasFonts, skipDivider, onNewPage, headingColor) {
+    ensureSpace(doc, cursor, 10, onNewPage);
+    cursor.y += 1.5;
     const sizePt = density.fontPt + 1.5;
-    doc.setCharSpace(sizePt * PT_TO_MM * 0.08);
-    doc.text(title.toUpperCase(), x, cursor.y);
-    doc.setCharSpace(0);
-    cursor.y += 2.5;
-    if (!skipDivider) {
-      doc.setDrawColor(224, 224, 227);
-      doc.line(x, cursor.y, x + width, cursor.y);
+    setFont(doc, 'BarlowCondensed', 'bold', sizePt, hasFonts);
+    const color = headingColor || palette.accent700;
+    doc.setTextColor(color[0], color[1], color[2]);
+    const baselineY = cursor.y + sizePt * PT_TO_MM * 0.8;
+
+    if (skipDivider === 'creative') {
+      doc.setFillColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+      doc.rect(x, baselineY - 1.35, 5.8, 0.65, 'F');
+      doc.setCharSpace(sizePt * PT_TO_MM * 0.08);
+      doc.text(title.toUpperCase(), x + 8.2, baselineY);
+      doc.setCharSpace(0);
+      cursor.y = baselineY + 2.2;
+    } else {
+      doc.setCharSpace(sizePt * PT_TO_MM * 0.08);
+      doc.text(title.toUpperCase(), x, baselineY);
+      doc.setCharSpace(0);
+      if (!skipDivider) {
+        const lineY = baselineY + 1.6;
+        doc.setDrawColor(224, 224, 227);
+        doc.line(x, lineY, x + width, lineY);
+        cursor.y = lineY + 2.4;
+      } else {
+        cursor.y = baselineY + 2.2;
+      }
     }
-    cursor.y += 3;
     setFont(doc, 'Barlow', 'normal', density.fontPt, hasFonts);
   }
 
@@ -197,47 +264,58 @@ const EuGeroPdfExport = (function () {
     blocks.forEach((block) => {
       if (block.type === 'text') {
         setFont(doc, 'Barlow', 'normal', density.fontPt, hasFonts);
-        drawWrappedText(doc, cursor, block.text, x, width, density.fontPt, density.lineHeightMult, [58, 60, 62], onNewPage);
-        cursor.y += 1.5;
+        if (Array.isArray(block.items) && block.items.length) {
+          drawInlineItems(doc, cursor, block.items, x, width, density.fontPt, density.lineHeightMult, [58, 60, 62], onNewPage);
+        } else {
+          drawWrappedText(doc, cursor, block.text, x, width, density.fontPt, density.lineHeightMult, [58, 60, 62], onNewPage);
+        }
+        cursor.y += 2.4;
         return;
       }
-      ensureSpace(doc, cursor, 6, onNewPage);
-      setFont(doc, 'BarlowCondensed', 'bold', density.fontPt + 1.5, hasFonts);
+      const titlePt = density.fontPt + 1.5;
+      const titleLineH = titlePt * PT_TO_MM * 1.2;
+      ensureSpace(doc, cursor, titleLineH + 4, onNewPage);
+      setFont(doc, 'BarlowCondensed', 'bold', titlePt, hasFonts);
       doc.setTextColor(palette.accent900[0], palette.accent900[1], palette.accent900[2]);
-      doc.text(block.title, x, cursor.y);
+      const titleBaseline = cursor.y + titlePt * PT_TO_MM * 0.8;
+      doc.text(block.title, x, titleBaseline);
       const larguraTitulo = doc.getTextWidth(block.title);
       if (block.period) {
-        setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
+        const periodPt = density.fontPt - 0.5;
+        setFont(doc, 'Barlow', 'normal', periodPt, hasFonts);
         doc.setTextColor(107, 109, 111);
         const larguraPeriodo = doc.getTextWidth(block.period);
         const cabemNaMesmaLinha = (larguraTitulo + larguraPeriodo + 4) <= width;
         if (cabemNaMesmaLinha) {
-          doc.text(block.period, x + width, cursor.y, { align: 'right' });
-          cursor.y += density.fontPt * PT_TO_MM * 1.3;
+          doc.text(block.period, x + width, titleBaseline, { align: 'right' });
+          cursor.y += titleLineH;
         } else {
-          cursor.y += density.fontPt * PT_TO_MM * 1.3;
-          doc.text(block.period, x + 3, cursor.y);
-          cursor.y += density.fontPt * PT_TO_MM * 1.3;
+          cursor.y += titleLineH;
+          doc.text(block.period, x, cursor.y + periodPt * PT_TO_MM * 0.8);
+          cursor.y += periodPt * PT_TO_MM * 1.25;
         }
       } else {
-        cursor.y += density.fontPt * PT_TO_MM * 1.3;
+        cursor.y += titleLineH;
       }
       if (block.sub) {
-        setFont(doc, 'Barlow', 'normal', density.fontPt, hasFonts);
+        const subPt = density.fontPt;
+        setFont(doc, 'Barlow', 'normal', subPt, hasFonts);
         doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
-        doc.text(block.sub, x, cursor.y);
-        cursor.y += density.fontPt * PT_TO_MM * 1.3;
+        doc.text(block.sub, x, cursor.y + subPt * PT_TO_MM * 0.8);
+        cursor.y += subPt * PT_TO_MM * 1.25;
       }
       if (block.desc) {
+        cursor.y += 0.8;
+        setFont(doc, 'Barlow', 'normal', density.fontPt, hasFonts);
         drawWrappedText(doc, cursor, block.desc, x, width, density.fontPt, density.lineHeightMult, [58, 60, 62], onNewPage);
       }
-      cursor.y += 3;
+      cursor.y += 2.8;
     });
   }
 
   function contactLineParts(personal) {
     return {
-      base: [personal.email, personal.phone, personal.location].filter(Boolean).join('   ·   '),
+      base: [personal.email, personal.phone, personal.location].filter(Boolean).join('  ·  '),
       linkedinUrl: EuGeroUtils.safeUrl(personal.linkedinUrl)
     };
   }
@@ -265,28 +343,46 @@ const EuGeroPdfExport = (function () {
     const linkedinDisplay = truncateLinkedinDisplay(linkedinUrl);
 
     if (linkedinUrl) {
-      const larguraBase = base ? doc.getTextWidth(`${base}   ·   `) : 0;
+      const sep = '  ·  ';
+      const larguraBase = base ? doc.getTextWidth(`${base}${sep}`) : 0;
+      const larguraLink = doc.getTextWidth(linkedinDisplay);
       if (align === 'center') {
-        const larguraTotal = doc.getTextWidth([base, linkedinDisplay].filter(Boolean).join('   ·   '));
+        if (maxWidth && base && (larguraBase + larguraLink) > maxWidth) {
+          doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+          doc.text(base, x, y, { align: 'center' });
+          doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
+          doc.textWithLink(linkedinDisplay, x - larguraLink / 2, y + 4.2, { url: linkedinUrl });
+          return 4.2;
+        }
+        const larguraTotal = doc.getTextWidth([base, linkedinDisplay].filter(Boolean).join(sep));
         const xInicio = x - larguraTotal / 2;
         doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-        if (base) doc.text(`${base}   ·   `, xInicio, y);
+        if (base) doc.text(`${base}${sep}`, xInicio, y);
         doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
         doc.textWithLink(linkedinDisplay, xInicio + larguraBase, y, { url: linkedinUrl });
-      } else {
-        doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-        if (base) doc.text(`${base}   ·   `, x, y, maxWidth ? { maxWidth } : undefined);
-        doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
-        doc.textWithLink(linkedinDisplay, x + larguraBase, y, { url: linkedinUrl });
+        return 0;
       }
-      return;
+      if (maxWidth && base && (larguraBase + larguraLink) > maxWidth) {
+        doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+        doc.text(base, x, y, { maxWidth });
+        doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
+        doc.textWithLink(linkedinDisplay, x, y + 4.2, { url: linkedinUrl });
+        return 4.2;
+      }
+      doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+      if (base) doc.text(`${base}${sep}`, x, y, maxWidth ? { maxWidth } : undefined);
+      doc.setTextColor(linkColor[0], linkColor[1], linkColor[2]);
+      doc.textWithLink(linkedinDisplay, x + larguraBase, y, { url: linkedinUrl });
+      return 0;
     }
 
     const texto = base || fallbackText;
     const textOptions = {};
     if (align === 'center') textOptions.align = 'center';
     if (maxWidth) textOptions.maxWidth = maxWidth;
+    doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
     doc.text(texto, x, y, Object.keys(textOptions).length ? textOptions : undefined);
+    return 0;
   }
 
   // ---- Layouts (5 familias estruturais) ----
@@ -294,25 +390,29 @@ const EuGeroPdfExport = (function () {
     const cursor = makeCursor(doc, margin);
     const { personal, sections } = data;
     setFont(doc, 'BarlowCondensed', 'bold', 24, hasFonts);
-    doc.setTextColor(26, 26, 46);
-    doc.setCharSpace(24 * PT_TO_MM * 0.08);
-    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), PAGE_W / 2, cursor.y + 8, { align: 'center' });
+    doc.setTextColor(29, 31, 32);
+    doc.setCharSpace(24 * PT_TO_MM * 0.04);
+    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), PAGE_W / 2, cursor.y + 7, { align: 'center' });
     doc.setCharSpace(0);
-    cursor.y += 13;
-    setFont(doc, 'Barlow', 'normal', density.fontPt + 1, hasFonts);
+    cursor.y += 12.5;
+    const headPt = density.fontPt + 1;
+    setFont(doc, 'Barlow', 'normal', headPt, hasFonts);
     doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
+    doc.setCharSpace(headPt * PT_TO_MM * 0.12);
     doc.text((personal.headline || 'Título profissional').toUpperCase(), PAGE_W / 2, cursor.y, { align: 'center' });
-    cursor.y += 6;
-    setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
-    doc.setTextColor(107, 109, 111);
-    drawContactLine(doc, personal, palette, PAGE_W / 2, cursor.y, { align: 'center', fallbackText: 'e-mail · telefone · cidade' });
-    cursor.y += 5;
+    doc.setCharSpace(0);
+    cursor.y += 5.5;
+    setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
+    const extraContactY = drawContactLine(doc, personal, palette, PAGE_W / 2, cursor.y, {
+      align: 'center', maxWidth: cursor.colWidth, fallbackText: 'e-mail · telefone · cidade'
+    });
+    cursor.y += 4.5 + extraContactY;
     doc.setDrawColor(224, 224, 227);
     doc.line(margin, cursor.y, PAGE_W - margin, cursor.y);
-    cursor.y += 8;
+    cursor.y += 4;
 
     sections.forEach((s) => {
-      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts);
+      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts, true);
       drawBlocks(doc, cursor, s.blocks, margin, cursor.colWidth, palette, density, hasFonts);
     });
   }
@@ -321,21 +421,21 @@ const EuGeroPdfExport = (function () {
     const cursor = makeCursor(doc, margin);
     const { personal, sections } = data;
     setFont(doc, 'BarlowCondensed', 'bold', 26, hasFonts);
-    doc.setTextColor(26, 26, 46);
-    doc.setCharSpace(26 * PT_TO_MM * 0.08);
-    doc.text(personal.fullName || 'Seu Nome', margin, cursor.y + 8);
-    doc.setCharSpace(0);
+    doc.setTextColor(29, 31, 32);
+    doc.text(personal.fullName || 'Seu Nome', margin, cursor.y + 7.5);
     cursor.y += 13;
     setFont(doc, 'Barlow', 'normal', density.fontPt + 1, hasFonts);
     doc.setTextColor(107, 109, 111);
     doc.text(personal.headline || 'Título profissional', margin, cursor.y);
-    cursor.y += 6;
-    setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
-    drawContactLine(doc, personal, palette, margin, cursor.y, { align: 'left', baseColor: [58, 60, 62], fallbackText: 'contato@email.com · cidade' });
-    cursor.y += 9;
+    cursor.y += 5.5;
+    setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
+    const extraContactY = drawContactLine(doc, personal, palette, margin, cursor.y, {
+      align: 'left', maxWidth: cursor.colWidth, baseColor: [107, 109, 111], fallbackText: 'contato@email.com · cidade'
+    });
+    cursor.y += 5.5 + extraContactY;
 
     sections.forEach((s) => {
-      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts);
+      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts, true, undefined, [29, 31, 32]);
       drawBlocks(doc, cursor, s.blocks, margin, cursor.colWidth, palette, density, hasFonts);
     });
   }
@@ -347,30 +447,36 @@ const EuGeroPdfExport = (function () {
     doc.rect(0, 0, PAGE_W, bannerH, 'F');
     setFont(doc, 'BarlowCondensed', 'bold', 22, hasFonts);
     doc.setTextColor(238, 244, 250);
-    doc.setCharSpace(22 * PT_TO_MM * 0.08);
-    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), margin, 14);
+    doc.setCharSpace(22 * PT_TO_MM * 0.04);
+    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), margin, 13.5);
     doc.setCharSpace(0);
-    setFont(doc, 'Barlow', 'normal', density.fontPt + 1, hasFonts);
+    const headPt = density.fontPt + 0.5;
+    setFont(doc, 'Barlow', 'normal', headPt, hasFonts);
     doc.setTextColor(185, 205, 224);
-    doc.text((personal.headline || 'Título profissional').toUpperCase(), margin, 21);
-    setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
-    doc.setTextColor(159, 182, 205);
-    drawContactLine(doc, personal, palette, margin, 27, { align: 'left', baseColor: [159, 182, 205], linkColor: [238, 244, 250] });
+    doc.setCharSpace(headPt * PT_TO_MM * 0.1);
+    doc.text((personal.headline || 'Título profissional').toUpperCase(), margin, 20);
+    doc.setCharSpace(0);
+    setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
+    drawContactLine(doc, personal, palette, margin, 26, {
+      align: 'left', maxWidth: PAGE_W - margin * 2, baseColor: [159, 182, 205], linkColor: [238, 244, 250], fallbackText: 'e-mail · telefone · cidade'
+    });
 
     const cursor = makeCursor(doc, margin);
-    cursor.y = bannerH + 10;
+    cursor.y = bannerH + 6;
     sections.forEach((s) => {
-      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts);
+      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts, false, undefined, palette.accent900);
       drawBlocks(doc, cursor, s.blocks, margin, cursor.colWidth, palette, density, hasFonts);
     });
   }
 
   function layoutSidebar(doc, data, palette, margin, density, hasFonts) {
-    const { personal, sections } = data;
+    const { personal } = data;
     const sidebarW = PAGE_W * 0.38;
     const desenharFundo = () => {
       doc.setFillColor(palette.accent100[0], palette.accent100[1], palette.accent100[2]);
       doc.rect(0, 0, sidebarW, PAGE_H, 'F');
+      doc.setDrawColor(224, 224, 227);
+      doc.line(sidebarW, 0, sidebarW, PAGE_H);
     };
     desenharFundo();
 
@@ -378,18 +484,20 @@ const EuGeroPdfExport = (function () {
     setFont(doc, 'BarlowCondensed', 'bold', 18, hasFonts);
     doc.setTextColor(palette.accent900[0], palette.accent900[1], palette.accent900[2]);
     const nameLines = doc.splitTextToSize((personal.fullName || 'Seu Nome').toUpperCase(), sideCursor.colWidth);
-    doc.setCharSpace(18 * PT_TO_MM * 0.08);
-    nameLines.forEach((line) => { doc.text(line, sideCursor.x, sideCursor.y); sideCursor.y += 7; });
+    const nameAscent = 18 * PT_TO_MM * 0.8;
+    doc.setCharSpace(18 * PT_TO_MM * 0.04);
+    nameLines.forEach((line) => {
+      doc.text(line, sideCursor.x, sideCursor.y + nameAscent);
+      sideCursor.y += 6.6;
+    });
     doc.setCharSpace(0);
-    sideCursor.y += 1;
+    sideCursor.y += 1.2;
     setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
-    doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
     drawWrappedText(doc, sideCursor, (personal.headline || 'Título profissional').toUpperCase(), sideCursor.x, sideCursor.colWidth, density.fontPt - 0.5, 1.3, palette.accent700, desenharFundo);
-    sideCursor.y += 4;
+    sideCursor.y += 3.5;
 
     drawSectionHeading(doc, sideCursor, 'Contato', sideCursor.x, sideCursor.colWidth, palette, density, hasFonts, true, desenharFundo);
     setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
-    doc.setTextColor(58, 60, 62);
     [personal.email, personal.phone, personal.location].filter(Boolean).forEach((line) => {
       drawWrappedText(doc, sideCursor, line, sideCursor.x, sideCursor.colWidth, density.fontPt - 1, 1.3, [58, 60, 62], desenharFundo);
     });
@@ -397,13 +505,12 @@ const EuGeroPdfExport = (function () {
     if (linkedinUrl) {
       ensureSpace(doc, sideCursor, 6, desenharFundo);
       setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
-      doc.setTextColor(58, 60, 62);
+      doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
       doc.textWithLink(truncateLinkedinDisplay(linkedinUrl), sideCursor.x, sideCursor.y + (density.fontPt - 1) * PT_TO_MM * 0.8, { url: linkedinUrl });
       sideCursor.y += (density.fontPt - 1) * PT_TO_MM * 1.3;
     }
-    sideCursor.y += 4;
+    sideCursor.y += 3.5;
 
-    const skills = EuGeroConfig.getSkillsFromState(data.state || {});
     const sidebarSectionIds = new Set(['skills', 'languages']);
     const mainSections = data.sections.filter((s) => !sidebarSectionIds.has(s.id));
     const skillsSection = data.sections.find((s) => s.id === 'skills');
@@ -412,16 +519,18 @@ const EuGeroPdfExport = (function () {
     [skillsSection, languagesSection].filter(Boolean).forEach((s) => {
       drawSectionHeading(doc, sideCursor, s.title, sideCursor.x, sideCursor.colWidth, palette, density, hasFonts, true, desenharFundo);
       setFont(doc, 'Barlow', 'normal', density.fontPt - 1, hasFonts);
-      doc.setTextColor(58, 60, 62);
       s.blocks.forEach((b) => {
-        drawWrappedText(doc, sideCursor, b.text, sideCursor.x, sideCursor.colWidth, density.fontPt - 1, 1.3, [58, 60, 62], desenharFundo);
+        const list = Array.isArray(b.items) && b.items.length ? b.items : [b.text];
+        list.forEach((entry) => {
+          drawWrappedText(doc, sideCursor, entry, sideCursor.x, sideCursor.colWidth, density.fontPt - 1, 1.35, [58, 60, 62], desenharFundo);
+        });
       });
-      sideCursor.y += 4;
+      sideCursor.y += 3.5;
     });
 
-    const mainCursor = { x: sidebarW + margin, y: margin, margin, colWidth: PAGE_W - sidebarW - margin * 1.6 };
+    const mainCursor = { x: sidebarW + margin * 0.9, y: margin - 1.5, margin, colWidth: PAGE_W - sidebarW - margin * 1.9 };
     mainSections.forEach((s) => {
-      drawSectionHeading(doc, mainCursor, s.title, mainCursor.x, mainCursor.colWidth, palette, density, hasFonts, undefined, desenharFundo);
+      drawSectionHeading(doc, mainCursor, s.title, mainCursor.x, mainCursor.colWidth, palette, density, hasFonts, true, desenharFundo);
       drawBlocks(doc, mainCursor, s.blocks, mainCursor.x, mainCursor.colWidth, palette, density, hasFonts, desenharFundo);
     });
   }
@@ -437,23 +546,26 @@ const EuGeroPdfExport = (function () {
     doc.setTextColor(255, 255, 255);
     doc.text(initials, margin + badgeSize / 2, cursor.y + badgeSize / 2 + 2, { align: 'center' });
 
-    const textX = margin + badgeSize + 6;
-    const textW = cursor.colWidth - badgeSize - 6;
-    setFont(doc, 'BarlowCondensed', 'bold', 18, hasFonts);
-    doc.setTextColor(26, 26, 46);
-    doc.setCharSpace(18 * PT_TO_MM * 0.08);
-    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), textX, cursor.y + 6);
+    const textX = margin + badgeSize + 5;
+    const textW = cursor.colWidth - badgeSize - 5;
+    setFont(doc, 'BarlowCondensed', 'bold', 20, hasFonts);
+    doc.setTextColor(29, 31, 32);
+    doc.setCharSpace(20 * PT_TO_MM * 0.04);
+    doc.text((personal.fullName || 'Seu Nome').toUpperCase(), textX, cursor.y + 5.8);
     doc.setCharSpace(0);
     setFont(doc, 'Barlow', 'normal', density.fontPt, hasFonts);
     doc.setTextColor(palette.accent700[0], palette.accent700[1], palette.accent700[2]);
-    doc.text((personal.headline || 'Título profissional').toUpperCase(), textX, cursor.y + 11);
+    doc.setCharSpace(density.fontPt * PT_TO_MM * 0.1);
+    doc.text((personal.headline || 'Título profissional').toUpperCase(), textX, cursor.y + 10.6);
+    doc.setCharSpace(0);
     setFont(doc, 'Barlow', 'normal', density.fontPt - 0.5, hasFonts);
-    doc.setTextColor(107, 109, 111);
-    drawContactLine(doc, personal, palette, textX, cursor.y + 16, { align: 'left', maxWidth: textW });
+    const extraContactY = drawContactLine(doc, personal, palette, textX, cursor.y + 15.2, {
+      align: 'left', maxWidth: textW, fallbackText: 'e-mail · telefone · cidade'
+    });
 
-    cursor.y += badgeSize + 8;
+    cursor.y += badgeSize + 5 + extraContactY;
     sections.forEach((s) => {
-      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts);
+      drawSectionHeading(doc, cursor, s.title, margin, cursor.colWidth, palette, density, hasFonts, 'creative');
       drawBlocks(doc, cursor, s.blocks, margin, cursor.colWidth, palette, density, hasFonts);
     });
   }
@@ -520,6 +632,7 @@ const EuGeroPdfExport = (function () {
     drawBlocks,
     drawContactLine,
     truncateLinkedinDisplay,
+    wrapInlineItems,
     LAYOUTS
   };
 })();

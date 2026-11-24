@@ -272,12 +272,20 @@ const EuGeroReviewScreen = (function () {
   }
 
   let pdfVendorPromise = null;
+  const ownScriptQuery = (typeof document !== 'undefined' && document.currentScript && document.currentScript.src)
+    ? (new URL(document.currentScript.src, 'https://local.invalid').search || '')
+    : '';
+
+  function versionedScriptUrl(src) {
+    return ownScriptQuery && !src.includes('?') ? `${src}${ownScriptQuery}` : src;
+  }
 
   function loadScriptOnce(src) {
+    const resolvedSrc = versionedScriptUrl(src);
     return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      if (document.querySelector(`script[src="${resolvedSrc}"]`)) { resolve(); return; }
       const script = document.createElement('script');
-      script.src = src;
+      script.src = resolvedSrc;
       script.onload = () => resolve();
       script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
       document.head.appendChild(script);
