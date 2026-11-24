@@ -191,15 +191,24 @@ const EuGeroScoring = (function () {
     return { totalChars, listItems, experienceCount, sectionCount: sections.length };
   }
 
+  function capacityMultiplier(state) {
+    const marginMult = state?.margin === 'estreita' ? 1.12 : (state?.margin === 'confortavel' ? 0.88 : 1);
+    const densityMult = state?.density === 'condensado' ? 1.16 : (state?.density === 'amplo' ? 0.86 : 1);
+    return marginMult * densityMult;
+  }
+
   function scorePageFit(state, sections) {
     const metrics = estimateContentVolume(state, sections);
+    const cap = capacityMultiplier(state);
+    const softLimit = Math.round(PAGE_CHAR_SOFT_LIMIT * cap);
+    const hardLimit = Math.round(PAGE_CHAR_HARD_LIMIT * cap);
     const issues = [];
     let level = 'ok';
 
-    if (metrics.totalChars >= PAGE_CHAR_HARD_LIMIT) {
+    if (metrics.totalChars >= hardLimit) {
       level = 'overflow';
       issues.push(`Texto muito extenso (${metrics.totalChars} caracteres) - risco alto de ultrapassar 1 pagina`);
-    } else if (metrics.totalChars >= PAGE_CHAR_SOFT_LIMIT) {
+    } else if (metrics.totalChars >= softLimit) {
       level = 'warning';
       issues.push(`Conteudo denso (${metrics.totalChars} caracteres) - pode nao caber em 1 pagina`);
     }
@@ -214,12 +223,12 @@ const EuGeroScoring = (function () {
       issues.push(`Muitos itens em listas (${metrics.listItems})`);
     }
 
-    if (state.pageMode === 'detailed' && level === 'overflow' && metrics.totalChars < PAGE_CHAR_HARD_LIMIT * 2) {
+    if (state.pageMode === 'detailed' && level === 'overflow' && metrics.totalChars < hardLimit * 2) {
       level = 'detailed';
       issues.unshift('O conteúdo pode ocupar duas páginas. Isso é adequado quando todas as informações são relevantes para a vaga.');
     }
 
-    const charRatio = Math.min(1, metrics.totalChars / PAGE_CHAR_HARD_LIMIT);
+    const charRatio = Math.min(1, metrics.totalChars / hardLimit);
     const listRatio = Math.min(1, metrics.listItems / PAGE_MAX_LIST_ITEMS);
     const fitScore = Math.max(0, Math.round(100 - (charRatio * 55 + listRatio * 45)));
 
@@ -306,7 +315,7 @@ const EuGeroScoring = (function () {
         // conselho generico em campo razoavel e ruido, nao ajuda.
         .filter((t) => t.score === 'fraco' || t.advice !== 'dá para deixar mais específico')
         .slice(0, 3)
-        .map(({ score, ...t }) => t);
+        .map(({ score: _score, ...t }) => t);
 
       return { sectionId: section.id, title: section.title, status, tips };
     });

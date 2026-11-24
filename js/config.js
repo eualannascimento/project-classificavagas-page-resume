@@ -60,8 +60,8 @@ const EuGeroConfig = (function () {
       list: true,
       itemFields: [
         { key: 'title', label: 'Cargo ou função', type: 'text', required: true, minLength: 3, fullWidth: true, placeholder: 'Informe seu cargo ou função', tip: 'Use um nome de função claro e conhecido. Se o título usado pela empresa for pouco comum, acrescente uma forma equivalente entre parênteses, sem alterar o sentido.' },
-        { key: 'company', label: 'Empresa, organização ou projeto', type: 'text', required: true, minLength: 2, placeholder: 'Informe onde realizou essa atividade', tip: 'Informe o nome da empresa, organização ou projeto. Se foi por conta própria, escreva “Trabalho independente”.' },
-        { key: 'period', label: 'Período', type: 'text', required: false, minLength: 0, placeholder: 'Mês e ano de início e fim', tip: 'Informe o mês e o ano de início e fim. Marque “Até hoje” se ainda realiza essa atividade.' },
+        { key: 'company', label: 'Empresa, organização ou projeto', type: 'text', required: true, minLength: 2, placeholder: 'Informe onde realizou essa atividade', tip: 'Informe o nome da empresa, organização ou projeto. Se foi por conta própria, escreva "Trabalho independente".' },
+        { key: 'period', label: 'Período', type: 'text', required: false, minLength: 0, placeholder: 'Ex.: Jan 2022 - Atual', tip: 'Informe o mês e o ano de início e fim. Marque “Até hoje” se ainda realiza essa atividade.' },
         { key: 'description', label: 'Atividades e resultados', type: 'textarea', required: true, minLength: 45, actionVerbs: true, fullWidth: true, placeholder: 'Descreva o que você fez', tip: 'Descreva suas atividades, os conhecimentos ou as ferramentas usadas e os resultados relevantes. Use termos específicos e verdadeiros, sem repetir palavras apenas para aumentar a correspondência com a vaga.' }
       ]
     },
@@ -83,7 +83,7 @@ const EuGeroConfig = (function () {
       description: 'Liste habilidades, ferramentas, tecnologias e formas de trabalhar que sejam relevantes para a oportunidade desejada.',
       linkedinHint: 'Perfil → seção "Competências" → adicionar competência',
       fields: [
-        { key: 'skillsText', label: 'Digite uma habilidade', type: 'skillsTags', required: false, minLength: 2, fullWidth: true, tip: 'Priorize conhecimentos relacionados à vaga. Use os nomes mais conhecidos no mercado e adicione somente habilidades que você realmente possui.', placeholder: 'Digite uma habilidade…' }
+        { key: 'skillsText', label: 'Digite uma habilidade', type: 'skillsTags', required: false, minLength: 2, fullWidth: true, tip: 'Priorize conhecimentos relacionados à vaga. Use os nomes mais conhecidos no mercado e adicione somente habilidades que você realmente possui.', placeholder: 'Digite uma habilidade' }
       ]
     },
     {
@@ -123,11 +123,14 @@ const EuGeroConfig = (function () {
     }
   ];
 
-  // Cinco famílias estruturais. A cor fica nos metadados, sem duplicar o
-  // layout na prévia ou no PDF.
+  // Oito famílias estruturais distintas. Cada entrada define geometria própria
+  // na prévia HTML, na impressão nativa e na exportação vetorial em PDF.
+  const SIDEBAR_ATS_NOTE = 'Este modelo divide o conteúdo em mais de uma área visual. Alguns sistemas podem misturar a ordem das informações. Para uma leitura mais segura, prefira um modelo de uma coluna.';
+  const GRAPHIC_ATS_NOTE = 'Este modelo usa um elemento gráfico no topo. Alguns sistemas podem ignorar ou reorganizar essa parte do conteúdo.';
+
   const TEMPLATES = {
     classic: {
-      id: 'classic', name: 'Clássico', description: 'Limpo, discreto e profissional',
+      id: 'classic', name: 'Clássico', description: 'Limpo, discreto e centralizado',
       layout: 'centered', thumbAccent: '#334155', atsFriendly: true
     },
     minimal: {
@@ -135,9 +138,9 @@ const EuGeroConfig = (function () {
       layout: 'left', thumbAccent: '#334155', atsFriendly: true
     },
     petroleo: {
-      id: 'petroleo', name: 'Petróleo', description: 'Barra lateral em azul-petróleo',
+      id: 'petroleo', name: 'Petróleo', description: 'Barra lateral esquerda em azul-petróleo',
       layout: 'sidebar', thumbAccent: '#155e75', atsFriendly: false,
-      atsNote: 'Este modelo divide o conteúdo em mais de uma área visual. Alguns sistemas podem misturar a ordem das informações. Para uma leitura mais segura, prefira um modelo de uma coluna.'
+      atsNote: SIDEBAR_ATS_NOTE
     },
     marinho: {
       id: 'marinho', name: 'Marinho', description: 'Faixa superior em azul-marinho',
@@ -146,9 +149,39 @@ const EuGeroConfig = (function () {
     creative: {
       id: 'creative', name: 'Criativo', description: 'Coluna única, com selo de iniciais',
       layout: 'creative', thumbAccent: '#416180', atsFriendly: false,
-      atsNote: 'Este modelo usa um elemento gráfico no topo. Alguns sistemas podem ignorar ou reorganizar essa parte do conteúdo.'
+      atsNote: GRAPHIC_ATS_NOTE
+    },
+    editorial: {
+      id: 'editorial', name: 'Editorial', description: 'Cabeçalho dividido e linha lateral nas seções',
+      layout: 'editorial', thumbAccent: '#6b2e26', atsFriendly: true
+    },
+    executivo: {
+      id: 'executivo', name: 'Executivo', description: 'Barra superior fina, faixa de contatos e guia vertical',
+      layout: 'topbar', thumbAccent: '#1f4d3a', atsFriendly: true
+    },
+    moderno: {
+      id: 'moderno', name: 'Moderno', description: 'Cabeçalho amplo e coluna lateral à direita',
+      layout: 'splitheader', thumbAccent: '#3b3f73', atsFriendly: false,
+      atsNote: SIDEBAR_ATS_NOTE
     }
   };
+
+  const PAGE_MARGINS = [
+    { v: 'estreita', l: 'Estreita', mm: 12 },
+    { v: 'padrao', l: 'Padrão', mm: 16 },
+    { v: 'confortavel', l: 'Confortável', mm: 20 }
+  ];
+
+  const PAGE_DENSITIES = [
+    { v: 'condensado', l: 'Compacto', fontPt: 10, lineHeight: 1.2, spaceMult: 0.78 },
+    { v: 'normal', l: 'Normal', fontPt: 10.5, lineHeight: 1.35, spaceMult: 1.0 },
+    { v: 'amplo', l: 'Amplo', fontPt: 11, lineHeight: 1.45, spaceMult: 1.2 }
+  ];
+
+  const PAGE_MODES = [
+    { v: 'compact', l: '1 página' },
+    { v: 'detailed', l: 'Até 2 páginas' }
+  ];
 
   const TEMPLATE_IDS = Object.keys(TEMPLATES);
 
@@ -174,7 +207,8 @@ const EuGeroConfig = (function () {
   }
 
   function isSidebarTemplate(templateId) {
-    return getTemplateMeta(templateId).layout === 'sidebar';
+    const layout = getTemplateMeta(templateId).layout;
+    return layout === 'sidebar' || layout === 'splitheader';
   }
 
   const STORAGE_KEY = 'eugero-curriculo-state';
@@ -276,6 +310,9 @@ const EuGeroConfig = (function () {
     SECTION_LABELS,
     TEMPLATES,
     TEMPLATE_IDS,
+    PAGE_MARGINS,
+    PAGE_DENSITIES,
+    PAGE_MODES,
     getTemplateMeta,
     accentPalette,
     isSidebarTemplate,

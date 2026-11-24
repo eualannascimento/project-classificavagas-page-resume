@@ -2,7 +2,7 @@
  * Prévia ao vivo do currículo nas cinco famílias estruturais.
  */
 const EuGeroPreview = (function () {
-  const { getSkillsFromState, getActiveSections, SECTION_LABELS } = EuGeroConfig;
+  const { getSkillsFromState, getActiveSections } = EuGeroConfig;
 
   const { escapeHtml, escapeAttr, safeUrl } = EuGeroUtils;
 
@@ -116,15 +116,10 @@ const EuGeroPreview = (function () {
     return showSkeleton ? renderSkeletonSection(title) : '';
   }
 
-  function isSectionEnabled(enabledSet, id) {
-    return !enabledSet || enabledSet.has(id);
-  }
-
   function buildContent(state, enabledSections, options) {
     const sidebarLayout = options?.sidebarLayout === true;
     const showSkeleton = options?.mode !== 'export';
     const enabled = enabledSections || getActiveSections(state.enabledSections);
-    const enabledSet = new Set(enabled.map(s => s.id));
     const p = state.personal || {};
     const sectionMarkup = {
       summary: state.summary?.trim()
@@ -134,7 +129,7 @@ const EuGeroPreview = (function () {
       education: renderEducation(state.education, showSkeleton),
       skills: sidebarLayout ? '' : renderSkills(state, showSkeleton),
       languages: sidebarLayout ? '' : renderLanguages(state.languages, showSkeleton),
-      certifications: renderGenericList('Certificados', state.certifications, ['name'], c => `
+      certifications: renderGenericList('Certificações', state.certifications, ['name'], c => `
         <article class="cv-item"><strong>${escapeHtml(c.name)}</strong><div class="cv-item-sub">${escapeHtml(c.issuer || '')}${(c.year || c.date) ? ` · ${escapeHtml(c.year || fmtDate(c.date))}` : ''}</div></article>
       `, showSkeleton),
       projects: renderGenericList('Projetos', state.projects, ['name'], p => `
@@ -281,6 +276,86 @@ const EuGeroPreview = (function () {
     `;
   }
 
+  function renderEditorialLayout(state, enabledSections, templateId, mode) {
+    const { personal, content } = buildContent(state, enabledSections, { sidebarLayout: false, mode });
+    const phoneLoc = [personal.phone, personal.location].filter(Boolean).map(escapeHtml).join('&nbsp;· ');
+
+    return `
+      <div class="cv cv-editorial template-${templateId || 'editorial'}">
+        <header class="cv-editorial-header">
+          <div class="cv-editorial-id">
+            <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
+            <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
+          </div>
+          <div class="cv-editorial-meta">
+            <p>${escapeHtml(personal.email) || 'e-mail'}</p>
+            <p>${phoneLoc || 'telefone · cidade'}</p>
+            ${personal.linkedinUrl ? `<p>${renderLinkedinLink(personal.linkedinUrl)}</p>` : ''}
+          </div>
+        </header>
+        <div class="cv-editorial-rule" aria-hidden="true"></div>
+        <div class="cv-body">${content}</div>
+      </div>
+    `;
+  }
+
+  function renderTopbarLayout(state, enabledSections, templateId, mode) {
+    const { personal, content } = buildContent(state, enabledSections, { sidebarLayout: false, mode });
+    const contacts = buildContactParts(personal);
+
+    return `
+      <div class="cv cv-topbar template-${templateId || 'executivo'}">
+        <div class="cv-topbar-edge" aria-hidden="true"></div>
+        <header class="cv-topbar-header">
+          <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
+          <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
+          <p class="cv-contacts cv-topbar-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'e-mail · telefone · cidade'}</p>
+        </header>
+        <div class="cv-body">${content}</div>
+      </div>
+    `;
+  }
+
+  function renderSplitHeaderLayout(state, enabledSections, templateId, mode) {
+    const { personal, content } = buildContent(state, enabledSections, { sidebarLayout: true, mode });
+    const showSkeleton = mode !== 'export';
+    const skills = getSkillsFromState(state);
+    const enabled = enabledSections || getActiveSections(state.enabledSections);
+    const enabledSet = new Set(enabled.map(s => s.id));
+    const contacts = buildContactParts(personal);
+    const showSkillsBlock = enabledSet.has('skills') && (skills.length || showSkeleton);
+    const showLanguagesBlock = enabledSet.has('languages') && (state.languages?.some(l => l.language) || showSkeleton);
+
+    return `
+      <div class="cv cv-splitheader template-${templateId || 'moderno'}">
+        <header class="cv-splitheader-top">
+          <h1 class="cv-name">${escapeHtml(personal.fullName) || 'Seu Nome'}</h1>
+          <p class="cv-headline">${escapeHtml(personal.headline) || 'Título profissional'}</p>
+          <p class="cv-contacts">${contacts.length ? contacts.join('&nbsp;· ') : 'e-mail · telefone · cidade'}</p>
+        </header>
+        <div class="cv-splitheader-grid">
+          <main class="cv-splitheader-main">${content}</main>
+          <aside class="cv-splitheader-rail">
+            ${showSkillsBlock ? `
+              <div class="cv-rail-section">
+                <h3>Habilidades</h3>
+                ${skills.length ? skills.map(s => `<p>${escapeHtml(s.name || s)}</p>`).join('') : '<p class="cv-muted">Suas habilidades</p>'}
+              </div>
+            ` : ''}
+            ${showLanguagesBlock ? `
+              <div class="cv-rail-section">
+                <h3>Idiomas</h3>
+                ${state.languages?.some(l => l.language)
+                  ? state.languages.filter(l => l.language).map(l => `<p>${escapeHtml(l.language)}${l.level ? ` (${escapeHtml(l.level)})` : ''}</p>`).join('')
+                  : '<p class="cv-muted">Seus idiomas</p>'}
+              </div>
+            ` : ''}
+          </aside>
+        </div>
+      </div>
+    `;
+  }
+
   function render(state, templateId, enabledSections, mode) {
     const meta = EuGeroConfig.getTemplateMeta(templateId);
     switch (meta.layout) {
@@ -288,6 +363,9 @@ const EuGeroPreview = (function () {
       case 'banner': return renderBannerLayout(state, enabledSections, templateId, mode);
       case 'left': return renderLeftLayout(state, enabledSections, templateId, mode);
       case 'creative': return renderCreativeLayout(state, enabledSections, templateId, mode);
+      case 'editorial': return renderEditorialLayout(state, enabledSections, templateId, mode);
+      case 'topbar': return renderTopbarLayout(state, enabledSections, templateId, mode);
+      case 'splitheader': return renderSplitHeaderLayout(state, enabledSections, templateId, mode);
       default: return renderCenteredLayout(state, enabledSections, templateId, mode);
     }
   }

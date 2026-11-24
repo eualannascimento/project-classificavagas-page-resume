@@ -35,17 +35,16 @@
 
   #print-cv {
     display: block !important;
-    /* Largura com o A4 como teto: fixar 210mm estourava horizontalmente onde a
-       area imprimivel e menor. */
+    width: 210mm;
     max-width: 210mm;
-    /* templates.css define ".preview-content" com min-height 297mm fora de
-       qualquer media query, e o #print-cv recebe essa classe em syncPrintCv().
-       Era essa regra que mantinha a caixa com altura de folha inteira. */
     min-height: 0 !important;
     overflow: hidden;
     box-sizing: border-box;
     background: #fff;
     box-shadow: none;
+  }
+  #print-cv .cv-sidebar-layout {
+    min-height: 0 !important;
   }
   /* Margem do ultimo filho colapsa para fora da caixa e empurra a paginacao. */
   #print-cv > *:last-child { margin-bottom: 0 !important; }
@@ -129,7 +128,7 @@
 }
 .field-hint svg { flex: none; margin-top: 1px; }
 
-/* ---- Controles de pagina (margens/espacamento) — seg do design system ---- */
+/* ---- Controles de pagina (margens/espacamento) - seg do design system ---- */
 .seg {
   display: inline-flex; overflow: hidden;
   border: 1px solid var(--color-divider); border-radius: 0;

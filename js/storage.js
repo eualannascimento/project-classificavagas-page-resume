@@ -147,8 +147,12 @@ const EuGeroStorage = (function () {
     merged.summary = textOrEmpty(data.summary);
     merged.skillsText = textOrEmpty(data.skillsText);
     merged.currentStep = Number.isInteger(data.currentStep) && data.currentStep >= 0 ? data.currentStep : 0;
-    merged.margin = ['estreita', 'padrao', 'confortavel'].includes(data.margin) ? data.margin : defaults.margin;
-    merged.density = ['normal', 'condensado'].includes(data.density) ? data.density : defaults.density;
+    const validMargins = (EuGeroConfig.PAGE_MARGINS || []).map((m) => m.v);
+    const validDensities = (EuGeroConfig.PAGE_DENSITIES || []).map((d) => d.v);
+    merged.margin = (validMargins.length ? validMargins : ['estreita', 'padrao', 'confortavel']).includes(data.margin)
+      ? data.margin : defaults.margin;
+    merged.density = (validDensities.length ? validDensities : ['condensado', 'normal', 'amplo']).includes(data.density)
+      ? data.density : defaults.density;
     merged.pageMode = ['compact', 'detailed'].includes(data.pageMode) ? data.pageMode : defaults.pageMode;
 
     merged.template = EuGeroConfig.TEMPLATE_IDS.includes(merged.template) ? merged.template : 'classic';

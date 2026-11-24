@@ -47,7 +47,7 @@ const EuGeroSampleData = (function () {
         endCurrent: false
       }],
       languages: [
-        { language: 'Português', level: 'Nativo' },
+        { language: 'Português', level: 'Fluente' },
         { language: 'Inglês', level: 'Básico' }
       ],
       certifications: [

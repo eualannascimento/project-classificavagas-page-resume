@@ -56,7 +56,7 @@ const EuGeroCharacters = (function () {
       { name: 'Elaboração de Relatórios Técnicos' }
     ],
     languages: [
-      { language: 'Inglês', level: 'Nativo' },
+      { language: 'Inglês', level: 'Fluente' },
       { language: 'Francês', level: 'Fluente' },
       { language: 'Alemão', level: 'Intermediário' }
     ],
@@ -120,7 +120,7 @@ const EuGeroCharacters = (function () {
       { name: 'Precisão Técnica (Arquearia)' }
     ],
     languages: [
-      { language: 'Mandarim', level: 'Nativo' },
+      { language: 'Mandarim', level: 'Fluente' },
       { language: 'Português', level: 'Fluente' }
     ],
     certifications: [],
@@ -183,7 +183,7 @@ const EuGeroCharacters = (function () {
       { name: 'Liderança pelo Exemplo' }
     ],
     languages: [
-      { language: 'Grego Antigo', level: 'Nativo' }
+      { language: 'Grego Antigo', level: 'Fluente' }
     ],
     certifications: [
       {
@@ -251,7 +251,7 @@ const EuGeroCharacters = (function () {
       { name: 'Inteligência Emocional sob Estresse' }
     ],
     languages: [
-      { language: 'Português', level: 'Nativo' }
+      { language: 'Português', level: 'Fluente' }
     ],
     certifications: [
       {
