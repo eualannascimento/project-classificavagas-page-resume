@@ -1891,6 +1891,29 @@ console.log('\nPDF - margens, densidades e 8 familias:');
   const yAmplo = measureFinalY(1.2, 1.45, 11);
   assert(yCompact < yNormal && yNormal < yAmplo,
     'Espacamento compacto, normal e amplo escalam progressivamente o ritmo vertical do PDF');
+
+  // Garante ausencia total de sobreposicao entre Nome e Cargo nas 8 familias mesmo em Estreita + Compacto
+  Object.entries(EuGeroPdfExport.LAYOUTS).forEach(([layoutKey, fn]) => {
+    const { doc, calls } = createFakeDoc();
+    const palette = EuGeroPdfExport.accentPalette('#334155');
+    const st = {
+      ...resumeLimitBase,
+      personal: {
+        ...resumeLimitBase.personal,
+        fullName: 'Sherlock Holmes',
+        headline: 'Analista de Inteligência | Investigação e Dados'
+      }
+    };
+    const data = EuGeroPdfExport.buildSectionsData(st, baseSections);
+    data.state = st;
+    fn(doc, data, palette, 12, { fontPt: 10, lineHeightMult: 1.2, spaceMult: 0.78 }, false);
+    const nameCall = calls.find((c) => c.method === 'text' && String(c.args[0]).toUpperCase().includes('SHERLOCK'));
+    const headCall = calls.find((c) => c.method === 'text' && String(c.args[0]).toUpperCase().includes('ANALISTA DE'));
+    assert(
+      !!nameCall && !!headCall && (headCall.args[2] - nameCall.args[2]) >= 4.5,
+      `Cabecalho ${layoutKey} mantem separacao segura (>= 4.5mm) entre nome e cargo no modo compacto`
+    );
+  });
 }
 
 setTimeout(() => {

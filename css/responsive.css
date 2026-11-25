@@ -827,15 +827,15 @@ body:has(#screen-start:not([hidden])) .preview-mobile-dock {
     display: block;
   }
   .timeline-step {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 45px;
+    min-height: 45px;
   }
   .btn,
   .link-btn,
   .review-tab,
   #btn-wizard-to-start,
   #btn-go-home {
-    min-height: 44px;
+    min-height: 45px;
   }
   .btn-ghost {
     padding-top: 10px;
@@ -855,19 +855,12 @@ body:has(#screen-start:not([hidden])) .preview-mobile-dock {
   #btn-prev-template-overlay,
   #btn-next-template-overlay,
   .cv-help {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  #btn-gal-prev,
-  #btn-gal-next,
-  #btn-prev-template-overlay,
-  #btn-next-template-overlay {
     min-width: 45px;
     min-height: 45px;
   }
   .seg-opt,
   .checkbox-label {
-    min-height: 44px;
+    min-height: 45px;
   }
 }
 
