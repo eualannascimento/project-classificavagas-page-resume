@@ -36,6 +36,46 @@ const EuGeroUtils = (function () {
     }
   }
 
+  /**
+   * Formata uma URL (especialmente LinkedIn/portfólio) para exibição limpa no
+   * currículo impresso e na prévia: remove protocolo http(s), prefixo www. ou
+   * subdomínio regional do LinkedIn (ex.: br.linkedin.com -> linkedin.com),
+   * parâmetros de rastreamento (?utm_*, ?trk=...) e barra final, preservando o
+   * identificador completo do perfil sem cortar o endereço do candidato.
+   */
+  function formatUrlDisplay(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return '';
+    const href = safeUrl(raw);
+    if (!href) return raw;
+    try {
+      const parsed = new URL(href);
+      let host = parsed.hostname.replace(/^www\./i, '');
+      if (/^[a-z]{2}\.linkedin\.com$/i.test(host)) {
+        host = 'linkedin.com';
+      }
+      let pathname = parsed.pathname || '';
+      try {
+        pathname = decodeURIComponent(pathname);
+      } catch {
+        // Mantem pathname original caso haja sequencia percentual malformada
+      }
+      pathname = pathname.replace(/\/+$/, '');
+
+      let query = '';
+      if (parsed.search && !/linkedin\.com$/i.test(host)) {
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'trk', 'fbclid', 'igshid', 'si'].forEach((k) => parsed.searchParams.delete(k));
+        const rest = parsed.searchParams.toString();
+        if (rest) query = `?${rest}`;
+      }
+
+      const clean = `${host}${pathname}${query}`;
+      return clean.length > 96 ? `${clean.slice(0, 93)}...` : clean;
+    } catch {
+      return raw.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '');
+    }
+  }
+
   function debounce(fn, ms) {
     let timer;
     return function debounced(...args) {
@@ -44,5 +84,5 @@ const EuGeroUtils = (function () {
     };
   }
 
-  return { escapeHtml, escapeAttr, safeUrl, debounce };
+  return { escapeHtml, escapeAttr, safeUrl, formatUrlDisplay, debounce };
 })();

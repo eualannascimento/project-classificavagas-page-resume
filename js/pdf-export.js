@@ -417,17 +417,102 @@ const EuGeroPdfExport = (function () {
 
   function contactLineParts(personal) {
     return {
+      items: [personal.email, personal.phone, personal.location].filter(Boolean),
       base: [personal.email, personal.phone, personal.location].filter(Boolean).join(' · '),
       linkedinUrl: EuGeroUtils.safeUrl(personal.linkedinUrl)
     };
   }
 
-  // Trunca apenas o texto EXIBIDO do link do LinkedIn (o href/url do
-  // textWithLink continua completo). Evita que uma URL longa vaze da
-  // margem ou da coluna da sidebar.
+  // Formata o texto exibido do link do LinkedIn sem cortar o identificador
+  // do candidato (remove https://, www., subdominio regional e query de
+  // rastreamento, mantendo o href completo em textWithLink).
   function truncateLinkedinDisplay(url) {
     if (!url) return '';
-    return url.length > 40 ? `${url.slice(0, 37)}...` : url;
+    if (typeof EuGeroUtils !== 'undefined' && typeof EuGeroUtils.formatUrlDisplay === 'function') {
+      return EuGeroUtils.formatUrlDisplay(url);
+    }
+    return String(url).trim().replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '');
+  }
+
+  // Quebra URLs e e-mails longos preferencialmente apos "/", "-", "@" e ".",
+  // evitando cortes no meio de silabas ou dominios em colunas estreitas.
+  function wrapUrlLines(doc, text, maxWidth) {
+    const str = String(text || '');
+    if (!str) return [];
+    if (!maxWidth || doc.getTextWidth(str) <= maxWidth) return [str];
+    const parts = str.match(/[^/\-@.]+[/\-@.]?/g) || [str];
+    const lines = [];
+    let current = '';
+    parts.forEach((part) => {
+      const candidate = `${current}${part}`;
+      if (!current) {
+        if (doc.getTextWidth(part) <= maxWidth) {
+          current = part;
+        } else {
+          const split = doc.splitTextToSize(part, maxWidth);
+          lines.push(...split.slice(0, -1));
+          current = split[split.length - 1] || '';
+        }
+      } else if (doc.getTextWidth(candidate) <= maxWidth) {
+        current = candidate;
+      } else {
+        lines.push(current);
+        if (doc.getTextWidth(part) <= maxWidth) {
+          current = part;
+        } else {
+          const split = doc.splitTextToSize(part, maxWidth);
+          lines.push(...split.slice(0, -1));
+          current = split[split.length - 1] || '';
+        }
+      }
+    });
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  function planContactLines(doc, personal, maxWidth) {
+    const { items, linkedinUrl } = contactLineParts(personal);
+    const linkedinDisplay = linkedinUrl ? truncateLinkedinDisplay(personal.linkedinUrl || linkedinUrl) : '';
+    const sep = ' · ';
+    const baseLines = [];
+
+    items.forEach((rawItem) => {
+      const item = String(rawItem).trim();
+      if (!item) return;
+      if (!maxWidth) {
+        if (!baseLines.length) baseLines.push(item);
+        else baseLines[0] = `${baseLines[0]}${sep}${item}`;
+        return;
+      }
+      if (!baseLines.length) {
+        baseLines.push(...wrapUrlLines(doc, item, maxWidth));
+        return;
+      }
+      const prev = baseLines[baseLines.length - 1];
+      const joined = `${prev}${sep}${item}`;
+      if (doc.getTextWidth(joined) <= maxWidth) {
+        baseLines[baseLines.length - 1] = joined;
+      } else {
+        baseLines.push(...wrapUrlLines(doc, item, maxWidth));
+      }
+    });
+
+    if (!linkedinUrl) {
+      return { baseLines, inlineLink: false, linkLines: [], linkedinUrl: '', linkedinDisplay: '', totalLines: Math.max(1, baseLines.length) };
+    }
+
+    if (!baseLines.length) {
+      const linkLines = wrapUrlLines(doc, linkedinDisplay, maxWidth);
+      return { baseLines: [], inlineLink: false, linkLines, linkedinUrl, linkedinDisplay, totalLines: Math.max(1, linkLines.length) };
+    }
+
+    const lastBase = baseLines[baseLines.length - 1];
+    if (!maxWidth || doc.getTextWidth(`${lastBase}${sep}${linkedinDisplay}`) <= maxWidth) {
+      return { baseLines, inlineLink: true, linkLines: [linkedinDisplay], linkedinUrl, linkedinDisplay, totalLines: baseLines.length };
+    }
+
+    const linkLines = wrapUrlLines(doc, linkedinDisplay, maxWidth);
+    return { baseLines, inlineLink: false, linkLines, linkedinUrl, linkedinDisplay, totalLines: baseLines.length + linkLines.length };
   }
 
   function drawLinkWithUnderline(doc, display, x, y, url, linkColor, underline) {
@@ -451,46 +536,62 @@ const EuGeroPdfExport = (function () {
     const lineStep = opts.lineStepMm || 4.2;
     const underline = opts.underline === true;
     const fallbackText = opts.fallbackText !== undefined ? opts.fallbackText : '';
-    const { base, linkedinUrl } = contactLineParts(personal);
-    const linkedinDisplay = truncateLinkedinDisplay(linkedinUrl);
+    const sep = ' · ';
+    const plan = planContactLines(doc, personal, maxWidth);
 
-    if (linkedinUrl) {
-      const sep = ' · ';
-      const larguraBase = base ? doc.getTextWidth(`${base}${sep}`) : 0;
-      const larguraLink = doc.getTextWidth(linkedinDisplay);
-      if (align === 'center') {
-        if (maxWidth && base && (larguraBase + larguraLink) > maxWidth) {
-          doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-          doc.text(base, x, y, { align: 'center' });
-          drawLinkWithUnderline(doc, linkedinDisplay, x - larguraLink / 2, y + lineStep, linkedinUrl, linkColor, underline);
-          return lineStep;
+    if (plan.linkedinUrl) {
+      let curY = y;
+      if (plan.inlineLink) {
+        const prefixLines = plan.baseLines.slice(0, -1);
+        const lastBase = plan.baseLines[plan.baseLines.length - 1] || '';
+        doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+        prefixLines.forEach((line) => {
+          doc.text(line, x, curY, align === 'center' ? { align: 'center' } : undefined);
+          curY += lineStep;
+        });
+        const prefixWithSep = lastBase ? `${lastBase}${sep}` : '';
+        const prefixW = prefixWithSep ? doc.getTextWidth(prefixWithSep) : 0;
+        const linkW = doc.getTextWidth(plan.linkedinDisplay);
+        if (align === 'center') {
+          const totalW = prefixW + linkW;
+          const startX = x - totalW / 2;
+          if (prefixWithSep) {
+            doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+            doc.text(prefixWithSep, startX, curY);
+          }
+          drawLinkWithUnderline(doc, plan.linkedinDisplay, startX + prefixW, curY, plan.linkedinUrl, linkColor, underline);
+        } else {
+          if (prefixWithSep) {
+            doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+            doc.text(prefixWithSep, x, curY);
+          }
+          drawLinkWithUnderline(doc, plan.linkedinDisplay, x + prefixW, curY, plan.linkedinUrl, linkColor, underline);
         }
-        const larguraTotal = doc.getTextWidth([base, linkedinDisplay].filter(Boolean).join(sep));
-        const xInicio = x - larguraTotal / 2;
-        doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-        if (base) doc.text(`${base}${sep}`, xInicio, y);
-        drawLinkWithUnderline(doc, linkedinDisplay, xInicio + larguraBase, y, linkedinUrl, linkColor, underline);
-        return 0;
+        return (plan.totalLines - 1) * lineStep;
       }
-      if (maxWidth && base && (larguraBase + larguraLink) > maxWidth) {
-        doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-        doc.text(base, x, y, { maxWidth });
-        drawLinkWithUnderline(doc, linkedinDisplay, x, y + lineStep, linkedinUrl, linkColor, underline);
-        return lineStep;
-      }
+
       doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-      if (base) doc.text(`${base}${sep}`, x, y, maxWidth ? { maxWidth } : undefined);
-      drawLinkWithUnderline(doc, linkedinDisplay, x + larguraBase, y, linkedinUrl, linkColor, underline);
-      return 0;
+      plan.baseLines.forEach((line) => {
+        doc.text(line, x, curY, align === 'center' ? { align: 'center' } : undefined);
+        curY += lineStep;
+      });
+      plan.linkLines.forEach((linkLine) => {
+        const linkW = doc.getTextWidth(linkLine);
+        const linkX = align === 'center' ? (x - linkW / 2) : x;
+        drawLinkWithUnderline(doc, linkLine, linkX, curY, plan.linkedinUrl, linkColor, underline);
+        curY += lineStep;
+      });
+      return (plan.totalLines - 1) * lineStep;
     }
 
-    const texto = base || fallbackText;
-    const textOptions = {};
-    if (align === 'center') textOptions.align = 'center';
-    if (maxWidth) textOptions.maxWidth = maxWidth;
+    const linesToDraw = plan.baseLines.length ? plan.baseLines : (fallbackText ? [fallbackText] : ['']);
     doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-    doc.text(texto, x, y, Object.keys(textOptions).length ? textOptions : undefined);
-    return 0;
+    linesToDraw.forEach((line, idx) => {
+      const textOptions = {};
+      if (align === 'center') textOptions.align = 'center';
+      doc.text(line, x, y + idx * lineStep, Object.keys(textOptions).length ? textOptions : undefined);
+    });
+    return (linesToDraw.length - 1) * lineStep;
   }
 
   function drawContactBox(doc, cursor, personal, palette, x, width, density, hasFonts, options) {
@@ -517,12 +618,8 @@ const EuGeroPdfExport = (function () {
     const lh = density.lineHeightMult || 1.35;
     const { boxH } = lineMetrics(contactPt, lh);
     setFont(doc, 'Barlow', 'normal', contactPt, hasFonts);
-    const { base, linkedinUrl } = contactLineParts(personal);
-    if (linkedinUrl && base) {
-      const w = doc.getTextWidth(`${base} · `) + doc.getTextWidth(truncateLinkedinDisplay(linkedinUrl));
-      if (w > width) return boxH * 2;
-    }
-    return boxH;
+    const plan = planContactLines(doc, personal, width);
+    return Math.max(1, plan.totalLines) * boxH;
   }
 
   // ---- Layouts (8 familias estruturais em paridade 1:1 com css/templates.css) ----
@@ -651,14 +748,17 @@ const EuGeroPdfExport = (function () {
     drawSectionHeading(doc, sideCursor, 'Contato', sideCursor.x, sideCursor.colWidth, palette, density, hasFonts, true, desenharFundo, palette.accent700, sideH3Opts);
     setFont(doc, 'Barlow', 'normal', itemPt, hasFonts);
     [personal.email, personal.phone, personal.location].filter(Boolean).forEach((line) => {
-      drawWrappedText(doc, sideCursor, line, sideCursor.x, sideCursor.colWidth, itemPt, lh, [58, 60, 62], desenharFundo);
+      const wrappedContact = line.includes('@')
+        ? wrapUrlLines(doc, line, sideCursor.colWidth)
+        : doc.splitTextToSize(String(line), sideCursor.colWidth);
+      drawWrappedLines(doc, sideCursor, wrappedContact, sideCursor.x, itemPt, lh, [58, 60, 62], desenharFundo);
       sideCursor.y += 0.5;
     });
     const linkedinUrl = EuGeroUtils.safeUrl(personal.linkedinUrl);
     if (linkedinUrl) {
       const linkM = lineMetrics(itemPt, lh);
       setFont(doc, 'Barlow', 'normal', itemPt, hasFonts);
-      const linkLines = doc.splitTextToSize(truncateLinkedinDisplay(linkedinUrl), sideCursor.colWidth);
+      const linkLines = wrapUrlLines(doc, truncateLinkedinDisplay(personal.linkedinUrl || linkedinUrl), sideCursor.colWidth);
       linkLines.forEach((linkLine) => {
         ensureSpace(doc, sideCursor, linkM.boxH, desenharFundo);
         drawLinkWithUnderline(doc, linkLine, sideCursor.x, sideCursor.y + linkM.baselineOffset, linkedinUrl, palette.accent700, true);
@@ -741,7 +841,8 @@ const EuGeroPdfExport = (function () {
     const sp = density.spaceMult || 1;
     const cursor = makeCursor(doc, margin);
     const { personal, sections } = data;
-    const leftW = cursor.colWidth * 0.58;
+    const leftW = cursor.colWidth * 0.55;
+    const rightW = cursor.colWidth * 0.42;
     const rightX = margin + cursor.colWidth;
 
     const nameText = (personal.fullName || 'Seu Nome').toUpperCase();
@@ -755,8 +856,15 @@ const EuGeroPdfExport = (function () {
     const headH = measureBoxTextHeight(doc, headText, leftW, headPt, 1.25, 'Barlow', 'normal', hasFonts, 0.08);
     const leftBlockH = nameH + 1.4 * sp + headH;
 
+    setFont(doc, 'Barlow', 'normal', metaPt, hasFonts);
+    const emailLines = wrapUrlLines(doc, personal.email || 'e-mail', rightW);
+    const phoneLoc = [personal.phone, personal.location].filter(Boolean).join(' · ') || 'telefone · cidade';
+    const phoneLocLines = doc.splitTextToSize(phoneLoc, rightW);
     const linkedinUrl = EuGeroUtils.safeUrl(personal.linkedinUrl);
-    const rightLinesCount = linkedinUrl ? 3 : 2;
+    const linkLines = linkedinUrl
+      ? wrapUrlLines(doc, truncateLinkedinDisplay(personal.linkedinUrl || linkedinUrl), rightW)
+      : [];
+    const rightLinesCount = emailLines.length + phoneLocLines.length + linkLines.length;
     const rightBlockH = rightLinesCount * metaM.boxH;
     const headerH = Math.max(leftBlockH, rightBlockH);
 
@@ -774,16 +882,19 @@ const EuGeroPdfExport = (function () {
     setFont(doc, 'Barlow', 'normal', metaPt, hasFonts);
     doc.setTextColor(107, 109, 111);
     let rightTop = cursor.y + (headerH - rightBlockH);
-    doc.text(personal.email || 'e-mail', rightX, rightTop + metaM.baselineOffset, { align: 'right' });
-    rightTop += metaM.boxH;
-    const phoneLoc = [personal.phone, personal.location].filter(Boolean).join(' · ') || 'telefone · cidade';
-    doc.text(phoneLoc, rightX, rightTop + metaM.baselineOffset, { align: 'right' });
-    if (linkedinUrl) {
+    emailLines.forEach((line) => {
+      doc.text(line, rightX, rightTop + metaM.baselineOffset, { align: 'right' });
       rightTop += metaM.boxH;
-      const linkedinDisp = truncateLinkedinDisplay(linkedinUrl);
-      const linkW = doc.getTextWidth(linkedinDisp);
-      drawLinkWithUnderline(doc, linkedinDisp, rightX - linkW, rightTop + metaM.baselineOffset, linkedinUrl, palette.accent700, true);
-    }
+    });
+    phoneLocLines.forEach((line) => {
+      doc.text(line, rightX, rightTop + metaM.baselineOffset, { align: 'right' });
+      rightTop += metaM.boxH;
+    });
+    linkLines.forEach((linkLine) => {
+      const linkW = doc.getTextWidth(linkLine);
+      drawLinkWithUnderline(doc, linkLine, rightX - linkW, rightTop + metaM.baselineOffset, linkedinUrl, palette.accent700, true);
+      rightTop += metaM.boxH;
+    });
 
     cursor.y += headerH + 3.2 * sp;
     doc.setFillColor(palette.accent[0], palette.accent[1], palette.accent[2]);

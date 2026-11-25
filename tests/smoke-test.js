@@ -1788,24 +1788,45 @@ console.log('\nPDF - drawContactLine (helper compartilhado):');
   assert(link.args[3].url === personal.linkedinUrl, 'drawContactLine preserva a URL completa no href do link');
 }
 
-// --- Correcao 4: URL longa do LinkedIn e truncada apenas no texto exibido ---
-console.log('\nPDF - truncamento do texto exibido do LinkedIn:');
+// --- Correcao 4: URL do LinkedIn exibida limpa e sem cortar o identificador ---
+console.log('\nPDF e Previa - formatacao limpa e sem corte do LinkedIn:');
 
 {
-  const urlLonga = 'https://www.linkedin.com/in/um-nome-de-usuario-bem-comprido-para-teste';
+  const urlLonga = 'https://www.linkedin.com/in/um-nome-de-usuario-bem-comprido-para-teste/?utm_source=share';
   const exibido = EuGeroPdfExport.truncateLinkedinDisplay(urlLonga);
-  assert(exibido.length === 40, 'Texto exibido do LinkedIn e truncado para 40 caracteres (37 + "...")');
-  assert(exibido.endsWith('...'), 'Texto truncado termina com reticencias');
-  assert(urlLonga.startsWith(exibido.slice(0, 37)), 'Texto truncado preserva o inicio da URL original');
+  assert(
+    exibido === 'linkedin.com/in/um-nome-de-usuario-bem-comprido-para-teste',
+    'Texto exibido do LinkedIn remove https://www., barra final e rastreamento sem cortar o usuario'
+  );
+  assert(!exibido.endsWith('...'), 'URL normal ou longa do LinkedIn nao sofre corte prematuro com reticencias');
+  assert(
+    EuGeroUtils.formatUrlDisplay('https://br.linkedin.com/in/jo%C3%A3o-silva/') === 'linkedin.com/in/joão-silva',
+    'Subdominio regional br.linkedin.com e acentos codificados sao limpos para leitura humana'
+  );
 
   const { doc, calls } = createFakeDoc();
   const palette = EuGeroPdfExport.accentPalette('#334155');
+  const urlHrefEsperada = EuGeroUtils.safeUrl(urlLonga);
   const personal = { email: 'ana@teste.com', linkedinUrl: urlLonga };
   EuGeroPdfExport.drawContactLine(doc, personal, palette, 16, 30, { align: 'left' });
   const link = calls.find((c) => c.method === 'textWithLink');
   assert(!!link, 'drawContactLine desenha o link mesmo com URL longa');
-  assert(link.args[0] === exibido, 'Texto exibido no PDF e a versao truncada da URL');
-  assert(link.args[3].url === urlLonga, 'href do link continua sendo a URL completa, sem truncar');
+  assert(link.args[0] === exibido, 'Texto exibido no PDF usa o endereco limpo completo');
+  assert(link.args[3].url === urlHrefEsperada, 'href do link continua sendo a URL completa valida');
+
+  // Verifica nos 8 modelos que o link longo permanece integro na previa HTML e sem vazar no PDF
+  EuGeroConfig.TEMPLATE_IDS.forEach((tplId) => {
+    const html = EuGeroPreview.render(
+      { ...resumeLimitBase, personal: { ...resumeLimitBase.personal, linkedinUrl: urlLonga } },
+      tplId,
+      EuGeroConfig.getActiveSections(resumeLimitBase.enabledSections),
+      'export'
+    );
+    assert(
+      html.includes('um-nome-de-usuario-bem-comprido-para-teste') && !html.includes('...'),
+      `Previa HTML do modelo ${tplId} exibe o slug completo do LinkedIn sem cortar`
+    );
+  });
 }
 
 // --- Correcao 5: sem ponto orfao em habilidades e sem colisao com linha divisoria ---

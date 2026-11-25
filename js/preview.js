@@ -4,15 +4,17 @@
 const EuGeroPreview = (function () {
   const { getSkillsFromState, getActiveSections } = EuGeroConfig;
 
-  const { escapeHtml, escapeAttr, safeUrl } = EuGeroUtils;
+  const { escapeHtml, escapeAttr, safeUrl, formatUrlDisplay } = EuGeroUtils;
 
   function renderLinkedinLink(url) {
     const href = safeUrl(url);
     // Sem esquema http(s) valido o valor vira texto puro: melhor mostrar o que
     // a pessoa digitou do que entregar um link executavel.
     if (!href) return escapeHtml(url);
-    const display = url.length > 40 ? `${url.slice(0, 37)}...` : url;
-    return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
+    const display = typeof formatUrlDisplay === 'function'
+      ? formatUrlDisplay(url)
+      : String(url || '').replace(/^https?:\/\/(www\.)?/i, '').replace(/\/+$/, '');
+    return `<a class="cv-linkedin-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a>`;
   }
 
   function buildContactParts(personal) {
